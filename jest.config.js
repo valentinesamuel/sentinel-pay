@@ -1,0 +1,40 @@
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/apps', '<rootDir>/libs'],
+  testMatch: ['**/*.spec.ts', '**/*.integration-spec.ts'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest',
+  },
+  collectCoverageFrom: [
+    'apps/**/src/**/*.ts',
+    'libs/**/src/**/*.ts',
+    '!**/*.spec.ts',
+    '!**/*.integration-spec.ts',
+    '!**/*.e2e-spec.ts',
+    '!**/node_modules/**',
+    '!**/dist/**',
+    '!**/main.ts',
+  ],
+  coverageDirectory: './coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
+  moduleNameMapper: {
+    '^@libs/shared/(.*)$': '<rootDir>/libs/shared/src/$1',
+    '^@libs/database/(.*)$': '<rootDir>/libs/database/src/$1',
+    '^@apps/payment-api/(.*)$': '<rootDir>/apps/payment-api/src/$1',
+    '^@apps/mock-providers/(.*)$': '<rootDir>/apps/mock-providers/src/$1',
+    '^@apps/reconciliation-service/(.*)$': '<rootDir>/apps/reconciliation-service/src/$1',
+    '^@apps/notification-service/(.*)$': '<rootDir>/apps/notification-service/src/$1',
+  },
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  testTimeout: 30000,
+  maxWorkers: '50%',
+};
