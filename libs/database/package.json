@@ -1,0 +1,19 @@
+{
+  "name": "@libs/database",
+  "version": "1.0.0",
+  "description": "Shared database entities and configurations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "typeorm": "^0.3.17",
+    "pg": "^8.11.3",
+    "@libs/shared": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
