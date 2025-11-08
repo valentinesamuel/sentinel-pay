@@ -717,306 +717,141 @@ maxretry = 10
 ### What It Is
 Security Information and Event Management - collects, analyzes, and alerts on security events.
 
-### Option A: ELK Stack (FREE, Self-Hosted) ✅ RECOMMENDED
+### Option A: SigNoz (FREE, Modern) ✅ RECOMMENDED
+
+**Why SigNoz:**
+- All-in-one observability (logs + metrics + traces)
+- Modern, clean UI
+- Built on ClickHouse (faster than Elasticsearch)
+- OpenTelemetry native
+- Easy setup (single command)
+- Low resource usage (~2GB RAM)
+- Open-source alternative to DataDog
 
 **Components:**
-- **E**lasticsearch: Storage & search
-- **L**ogstash: Log processing
-- **K**ibana: Visualization & dashboards
+- **ClickHouse**: Fast columnar database
+- **Query Service**: API backend
+- **Frontend**: Beautiful dashboards
+- **OTel Collector**: Log/metrics/trace collection
 
-#### Setup Guide
+#### Setup Guide (SigNoz)
 
-**Step 1: Install with Docker Compose**
+**Step 1: Install with One Command**
+
+```bash
+# Clone SigNoz
+git clone -b main https://github.com/SigNoz/signoz.git && cd signoz/deploy/
+
+# Start SigNoz
+./install.sh
+
+# Access UI at http://localhost:3301
+# Default credentials will be shown in terminal
+```
+
+**Step 2: Configure for NestJS**
 
 ```yaml
-# docker-compose.yml
+# docker-compose.override.yml (add to signoz/deploy/)
 version: '3.8'
 
 services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: elasticsearch
+  otel-collector:
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    networks:
-      - elk
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.11.0
-    container_name: logstash
-    ports:
-      - "5044:5044"
-      - "9600:9600"
-    volumes:
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
-    networks:
-      - elk
-    depends_on:
-      - elasticsearch
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    networks:
-      - elk
-    depends_on:
-      - elasticsearch
-
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.11.0
-    container_name: filebeat
-    user: root
-    volumes:
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - elk
-    depends_on:
-      - elasticsearch
-      - logstash
-
-networks:
-  elk:
-    driver: bridge
-
-volumes:
-  elasticsearch-data:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 ```
 
-**Step 2: Configure Logstash Pipeline**
-
-```ruby
-# logstash/pipeline/logstash.conf
-input {
-  beats {
-    port => 5044
-  }
-
-  # Application logs
-  tcp {
-    port => 5000
-    codec => json
-  }
-}
-
-filter {
-  # Parse JSON logs
-  if [message] =~ /^\{/ {
-    json {
-      source => "message"
-    }
-  }
-
-  # Extract user ID from JWT
-  if [headers][authorization] {
-    grok {
-      match => { "[headers][authorization]" => "Bearer %{DATA:jwt_token}" }
-    }
-  }
-
-  # Geo IP lookup
-  geoip {
-    source => "client_ip"
-    target => "geoip"
-  }
-
-  # Security event detection
-  if [event_type] == "failed_login" {
-    mutate {
-      add_tag => ["security_event", "authentication_failure"]
-    }
-  }
-
-  if [event_type] == "suspicious_transaction" {
-    mutate {
-      add_tag => ["security_event", "fraud_alert"]
-    }
-  }
-}
-
-output {
-  elasticsearch {
-    hosts => ["elasticsearch:9200"]
-    index => "app-logs-%{+YYYY.MM.dd}"
-  }
-
-  # Alert on critical security events
-  if "security_event" in [tags] {
-    email {
-      to => "security@ubiquitous-tribble.com"
-      subject => "Security Alert: %{event_type}"
-      body => "Details: %{message}"
-    }
-  }
-}
-```
-
-**Step 3: Configure Filebeat**
-
-```yaml
-# filebeat/filebeat.yml
-filebeat.inputs:
-  - type: container
-    paths:
-      - '/var/lib/docker/containers/*/*.log'
-    processors:
-      - add_docker_metadata:
-          host: "unix:///var/run/docker.sock"
-
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/nginx/*.log
-      - /var/log/app/*.log
-
-output.logstash:
-  hosts: ["logstash:5044"]
-
-processors:
-  - add_host_metadata: ~
-  - add_cloud_metadata: ~
-```
-
-**Step 4: Create Security Dashboards in Kibana**
-
-Access Kibana at `http://localhost:5601` and create:
-
-**Dashboard 1: Failed Login Attempts**
-```json
-{
-  "query": {
-    "bool": {
-      "must": [
-        { "match": { "event_type": "failed_login" } }
-      ],
-      "filter": [
-        { "range": { "@timestamp": { "gte": "now-24h" } } }
-      ]
-    }
-  },
-  "aggs": {
-    "by_ip": {
-      "terms": { "field": "client_ip" }
-    }
-  }
-}
-```
-
-**Dashboard 2: Suspicious Transactions**
-```json
-{
-  "query": {
-    "bool": {
-      "should": [
-        { "match": { "tags": "fraud_alert" } },
-        { "range": { "transaction_amount": { "gte": 1000000 } } }
-      ]
-    }
-  }
-}
-```
-
-**Step 5: Set Up Alerts**
-
-```yaml
-# In Kibana: Stack Management > Rules and Connectors
-
-Alert 1 - Multiple Failed Logins:
-  Trigger: When failed_login count > 5 in 5 minutes
-  From: Same IP address
-  Action: Send email + Slack notification
-
-Alert 2 - Large Transaction:
-  Trigger: When transaction_amount > ₦1,000,000
-  Action: Send email to compliance team
-
-Alert 3 - Geographic Anomaly:
-  Trigger: When user location changes by >1000km in <1 hour
-  Action: Flag for review
-
-Alert 4 - API Abuse:
-  Trigger: When request rate > 100/minute from single IP
-  Action: Block IP + alert security team
-```
-
-**Step 6: Integrate with NestJS Application**
+**Step 3: Integrate with NestJS**
 
 ```typescript
-// src/logging/elk-logger.service.ts
+// Install dependencies
+npm install @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-http @opentelemetry/instrumentation-winston pino pino-opentelemetry-transport
+
+// src/tracing.ts
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { Resource } from '@opentelemetry/resources';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+
+const sdk = new NodeSDK({
+  resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'ubiquitous-tribble-api',
+    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
+  }),
+  traceExporter: new OTLPTraceExporter({
+    url: 'http://localhost:4318/v1/traces',
+  }),
+  instrumentations: [getNodeAutoInstrumentations()],
+});
+
+sdk.start();
+
+process.on('SIGTERM', () => {
+  sdk.shutdown()
+    .then(() => console.log('Tracing terminated'))
+    .catch((error) => console.log('Error terminating tracing', error))
+    .finally(() => process.exit(0));
+});
+
+// src/main.ts
+import './tracing'; // Import at the very top
+
+// src/logging/signoz-logger.service.ts
 import { Injectable, LoggerService } from '@nestjs/common';
-import { createLogger, format, transports } from 'winston';
-import 'winston-elasticsearch';
+import pino from 'pino';
 
 @Injectable()
-export class ELKLoggerService implements LoggerService {
+export class SigNozLoggerService implements LoggerService {
   private logger;
 
   constructor() {
-    this.logger = createLogger({
+    this.logger = pino({
       level: 'info',
-      format: format.combine(
-        format.timestamp(),
-        format.errors({ stack: true }),
-        format.json(),
-      ),
-      transports: [
-        // Console output
-        new transports.Console(),
-
-        // Send to Logstash
-        new transports.Http({
-          host: 'logstash',
-          port: 5000,
-          path: '/',
-        }),
-      ],
+      transport: {
+        target: 'pino-opentelemetry-transport',
+        options: {
+          url: 'http://localhost:4318/v1/logs',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      },
     });
   }
 
   log(message: string, context?: string) {
-    this.logger.info(message, { context });
+    this.logger.info({ context }, message);
   }
 
   error(message: string, trace?: string, context?: string) {
-    this.logger.error(message, { trace, context });
+    this.logger.error({ trace, context }, message);
   }
 
   warn(message: string, context?: string) {
-    this.logger.warn(message, { context });
+    this.logger.warn({ context }, message);
   }
 
   // Security event logging
   logSecurityEvent(eventType: string, data: any) {
     this.logger.warn({
       event_type: eventType,
+      security_event: true,
       ...data,
-      tags: ['security_event'],
-    });
+    }, 'Security Event Detected');
   }
 }
 
-// Usage in your app
+// Usage
 @Injectable()
 export class AuthService {
-  constructor(private elkLogger: ELKLoggerService) {}
+  constructor(private logger: SigNozLoggerService) {}
 
   async login(email: string, password: string, clientIp: string) {
     try {
       const user = await this.validateUser(email, password);
 
-      this.elkLogger.log('Successful login', {
+      this.logger.log('Successful login', {
         user_id: user.id,
         email: user.email,
         client_ip: clientIp,
@@ -1025,7 +860,7 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      this.elkLogger.logSecurityEvent('failed_login', {
+      this.logger.logSecurityEvent('failed_login', {
         email,
         client_ip: clientIp,
         reason: error.message,
@@ -1037,7 +872,546 @@ export class AuthService {
 }
 ```
 
-**Cost:** $0 (requires ~4GB RAM, 50GB storage)
+**Step 4: Create Security Dashboards**
+
+Access SigNoz UI at `http://localhost:3301`
+
+**Dashboard 1: Failed Login Monitoring**
+1. Go to "Dashboards" → "New Dashboard"
+2. Add panel: "Failed Login Attempts"
+3. Query:
+```sql
+SELECT
+  toStartOfInterval(timestamp, INTERVAL 5 MINUTE) as time,
+  count() as failed_attempts,
+  attributes_string['client_ip'] as ip
+FROM signoz_logs.distributed_logs
+WHERE attributes_string['event_type'] = 'failed_login'
+  AND timestamp >= now() - INTERVAL 24 HOUR
+GROUP BY time, ip
+HAVING failed_attempts > 5
+ORDER BY time DESC
+```
+
+**Dashboard 2: Suspicious Transactions**
+```sql
+SELECT
+  timestamp,
+  attributes_string['user_id'] as user,
+  attributes_number['transaction_amount'] as amount,
+  attributes_string['client_ip'] as ip
+FROM signoz_logs.distributed_logs
+WHERE attributes_string['event_type'] = 'transaction'
+  AND attributes_number['transaction_amount'] > 1000000
+  AND timestamp >= now() - INTERVAL 1 HOUR
+ORDER BY timestamp DESC
+```
+
+**Dashboard 3: API Performance**
+```sql
+SELECT
+  toStartOfInterval(timestamp, INTERVAL 1 MINUTE) as time,
+  quantile(0.95)(attributes_number['duration']) as p95_latency,
+  count() as request_count
+FROM signoz_traces.distributed_signoz_index_v2
+WHERE service_name = 'ubiquitous-tribble-api'
+  AND timestamp >= now() - INTERVAL 1 HOUR
+GROUP BY time
+ORDER BY time DESC
+```
+
+**Step 5: Set Up Alerts**
+
+```yaml
+# In SigNoz: Alerts → New Alert
+
+Alert 1 - Multiple Failed Logins:
+  Name: "Suspicious Login Activity"
+  Query:
+    SELECT count() FROM signoz_logs.distributed_logs
+    WHERE event_type = 'failed_login'
+    AND client_ip = {{ip}}
+    AND timestamp >= now() - INTERVAL 5 MINUTE
+  Condition: count() > 5
+  Notification: Email + Slack
+
+Alert 2 - Large Transaction:
+  Name: "High Value Transaction"
+  Query:
+    SELECT max(transaction_amount) FROM signoz_logs.distributed_logs
+    WHERE event_type = 'transaction'
+    AND timestamp >= now() - INTERVAL 1 MINUTE
+  Condition: max > 1000000
+  Notification: Email to compliance
+
+Alert 3 - High Error Rate:
+  Name: "API Error Spike"
+  Query:
+    SELECT count() FROM signoz_traces.distributed_signoz_index_v2
+    WHERE status_code >= 500
+    AND timestamp >= now() - INTERVAL 5 MINUTE
+  Condition: count() > 50
+  Notification: Slack + PagerDuty
+
+Alert 4 - API Latency:
+  Name: "Slow API Response"
+  Query:
+    SELECT quantile(0.95)(duration) FROM signoz_traces.distributed_signoz_index_v2
+    WHERE service_name = 'ubiquitous-tribble-api'
+    AND timestamp >= now() - INTERVAL 5 MINUTE
+  Condition: p95 > 1000ms
+  Notification: Slack
+```
+
+**Cost:** $0 (requires ~2GB RAM, 30GB storage)
+
+---
+
+### Option B: Grafana Stack (FREE, Popular) ✅ ALSO EXCELLENT
+
+**Why Grafana Stack:**
+- Industry standard
+- Beautiful dashboards
+- Huge community
+- Perfect for Prometheus metrics
+- Loki for logs (like "Prometheus for logs")
+- Tempo for distributed tracing
+
+**Components:**
+- **Grafana**: Visualization & dashboards
+- **Loki**: Log aggregation
+- **Prometheus**: Metrics collection
+- **Tempo**: Distributed tracing
+- **Promtail**: Log shipper
+
+#### Setup Guide (Grafana Stack)
+
+**Step 1: Docker Compose Setup**
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail/config.yaml:/etc/promtail/config.yaml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    ports:
+      - "3200:3200"   # tempo
+      - "4317:4317"   # otlp grpc
+      - "4318:4318"   # otlp http
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/tmp/tempo
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  grafana-data:
+  loki-data:
+  prometheus-data:
+  tempo-data:
+```
+
+**Step 2: Configure Loki**
+
+```yaml
+# loki/config.yaml
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+# Enable API for security events
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+```
+
+**Step 3: Configure Promtail**
+
+```yaml
+# promtail/config.yaml
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker containers
+  - job_name: containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/lib/docker/containers/*/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs: attrs
+      - labels:
+          stream:
+      - output:
+          source: output
+
+  # Application logs (JSON format)
+  - job_name: app_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: app
+          __path__: /var/log/app/*.log
+
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            message: message
+            user_id: user_id
+            event_type: event_type
+            client_ip: client_ip
+      - labels:
+          level:
+          event_type:
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+```
+
+**Step 4: Configure Prometheus**
+
+```yaml
+# prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # NestJS app metrics
+  - job_name: 'nestjs-app'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+        labels:
+          service: 'ubiquitous-tribble-api'
+
+  # Node exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+```
+
+**Step 5: Integrate with NestJS**
+
+```typescript
+// Install dependencies
+npm install pino pino-http pino-loki
+
+// src/logging/grafana-logger.service.ts
+import { Injectable, LoggerService } from '@nestjs/common';
+import pino from 'pino';
+
+@Injectable()
+export class GrafanaLoggerService implements LoggerService {
+  private logger;
+
+  constructor() {
+    this.logger = pino({
+      level: 'info',
+      formatters: {
+        level: (label) => {
+          return { level: label };
+        },
+      },
+      transport: {
+        targets: [
+          // Console
+          {
+            target: 'pino-pretty',
+            level: 'info',
+            options: {
+              colorize: true,
+            },
+          },
+          // Loki
+          {
+            target: 'pino-loki',
+            level: 'info',
+            options: {
+              batching: true,
+              interval: 5,
+              host: 'http://loki:3100',
+              labels: {
+                application: 'ubiquitous-tribble',
+                environment: process.env.NODE_ENV || 'development',
+              },
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  log(message: string, context?: string) {
+    this.logger.info({ context }, message);
+  }
+
+  error(message: string, trace?: string, context?: string) {
+    this.logger.error({ trace, context }, message);
+  }
+
+  warn(message: string, context?: string) {
+    this.logger.warn({ context }, message);
+  }
+
+  // Security event logging
+  logSecurityEvent(eventType: string, data: any) {
+    this.logger.warn({
+      event_type: eventType,
+      security_event: true,
+      ...data,
+    }, 'Security Event');
+  }
+}
+
+// Prometheus metrics
+// npm install @willsoto/nestjs-prometheus prom-client
+
+// src/app.module.ts
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+
+@Module({
+  imports: [
+    PrometheusModule.register({
+      path: '/metrics',
+      defaultMetrics: {
+        enabled: true,
+      },
+    }),
+  ],
+})
+export class AppModule {}
+
+// Create custom metrics
+// src/metrics/custom-metrics.service.ts
+import { Injectable } from '@nestjs/common';
+import { Counter, Histogram } from 'prom-client';
+import { InjectMetric } from '@willsoto/nestjs-prometheus';
+
+@Injectable()
+export class CustomMetricsService {
+  constructor(
+    @InjectMetric('http_requests_total')
+    public requestCounter: Counter<string>,
+    @InjectMetric('http_request_duration_seconds')
+    public requestDuration: Histogram<string>,
+    @InjectMetric('failed_login_attempts_total')
+    public failedLoginCounter: Counter<string>,
+    @InjectMetric('transaction_amount_total')
+    public transactionAmount: Counter<string>,
+  ) {}
+
+  recordFailedLogin(ip: string) {
+    this.failedLoginCounter.inc({ ip });
+  }
+
+  recordTransaction(amount: number, currency: string) {
+    this.transactionAmount.inc({ currency }, amount);
+  }
+}
+```
+
+**Step 6: Create Grafana Dashboards**
+
+Access Grafana at `http://localhost:3000` (admin/admin)
+
+**Add Data Sources:**
+1. Loki: http://loki:3100
+2. Prometheus: http://prometheus:9090
+3. Tempo: http://tempo:3200
+
+**Dashboard 1: Security Events**
+
+```json
+{
+  "title": "Security Events",
+  "panels": [
+    {
+      "title": "Failed Login Attempts",
+      "targets": [
+        {
+          "expr": "sum by (client_ip) (count_over_time({job=\"app\", event_type=\"failed_login\"}[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Large Transactions",
+      "targets": [
+        {
+          "expr": "{job=\"app\", event_type=\"transaction\"} | json | transaction_amount > 1000000",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Dashboard 2: API Performance**
+
+```json
+{
+  "title": "API Performance",
+  "panels": [
+    {
+      "title": "Request Rate",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[5m])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Response Time (p95)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, http_request_duration_seconds_bucket)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+          "refId": "C"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Step 7: Configure Alerts**
+
+```yaml
+# In Grafana: Alerting → Alert rules
+
+Alert 1 - Failed Logins:
+  Query: sum by (client_ip) (count_over_time({job="app", event_type="failed_login"}[5m]))
+  Condition: > 5
+  For: 5 minutes
+  Notification: Email + Slack
+
+Alert 2 - High Error Rate:
+  Query: rate(http_requests_total{status=~"5.."}[5m])
+  Condition: > 0.05 (5%)
+  For: 2 minutes
+  Notification: Slack
+
+Alert 3 - Slow API:
+  Query: histogram_quantile(0.95, http_request_duration_seconds_bucket)
+  Condition: > 1 (1 second)
+  For: 5 minutes
+  Notification: Slack
+```
+
+**Cost:** $0 (requires ~3GB RAM, 40GB storage)
 
 ---
 
@@ -1097,8 +1471,9 @@ Week 2:
      Cost: $0-20/month
 
 Week 3:
-  ✅ Set up ELK Stack:
-     - Docker Compose deployment
+  ✅ Set up SigNoz or Grafana Stack:
+     - SigNoz: One-command install (recommended for simplicity)
+     - Grafana: Full observability stack (industry standard)
      - Configure security dashboards
      - Set up alerts
      Cost: $0 (infrastructure cost only)
@@ -1122,19 +1497,19 @@ Month 3 (Before Production):
 ```yaml
 Starting Out (Months 1-3):
   - Cloudflare Free: $0
-  - ELK Stack (self-hosted): $0
+  - SigNoz/Grafana (self-hosted): $0
   - Vulnerability scanning: $0
   - Total: $0/month
 
 Production (Months 4+):
   - Cloudflare Pro: $20
-  - ELK Stack (VPS hosting): $20-40
+  - SigNoz/Grafana (VPS hosting): $20-40
   - Snyk Team (optional): $52
   - Total: $40-112/month
 
 Growing (Year 1+):
   - Cloudflare Business: $200
-  - ELK or managed SIEM: $50-150
+  - SigNoz/Grafana or managed SIEM: $50-150
   - Snyk Business: $189
   - Annual pentest: $5,000/year = $417/month
   - Total: $650-950/month
@@ -1147,7 +1522,7 @@ Growing (Year 1+):
 1. Set up Snyk for dependency scanning
 2. Add OWASP ZAP to CI/CD
 3. Deploy Cloudflare (Free tier)
-4. Install ELK Stack for logging
+4. Install SigNoz (easiest) or Grafana Stack (industry standard)
 
 # Phase 2: Before Launch (Month 3)
 1. Upgrade Cloudflare to Pro ($20/month)
