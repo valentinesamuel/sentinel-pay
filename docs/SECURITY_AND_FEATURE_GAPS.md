@@ -54,21 +54,32 @@ Sprint 24: Security Testing & Hardening (2 weeks, 40 SP)
 ```
 
 ### 3. Secret Management & Vault
-**Status:** ⚠️ Partially Covered
-**Risk:** HIGH
+**Status:** ⚠️ Partially Covered → ✅ SOLUTION SELECTED: Infisical
+**Risk:** HIGH → MEDIUM (being addressed)
 **Why Critical:**
 - Environment variables mentioned but no dedicated vault
 - API keys, database credentials, encryption keys need rotation
 - No secrets rotation policy
 
-**Recommendation:**
+**Selected Solution: Infisical (Open-Source)**
 ```yaml
-Implement HashiCorp Vault or AWS Secrets Manager:
-  - Centralized secret storage
-  - Automatic secret rotation
-  - Audit trail for secret access
-  - Dynamic credentials for databases
-  - Encryption key management (KMS)
+Implement Infisical (Self-Hosted):
+  Cost: FREE (open-source, MIT license)
+  Features:
+    - Centralized secret storage
+    - Automatic secret rotation
+    - Audit trail for secret access
+    - Multi-environment support (dev/staging/prod)
+    - End-to-end encryption
+    - RBAC (Role-Based Access Control)
+    - Native NestJS/TypeScript SDK
+    - Kubernetes/Docker integration
+
+  Why Infisical:
+    - Modern, developer-friendly UI
+    - Free to self-host (unlimited secrets/users)
+    - Easier than HashiCorp Vault
+    - Perfect for payment platform requirements
 ```
 
 ### 4. Security Information & Event Management (SIEM)
@@ -384,28 +395,17 @@ If Not Covered:
 ```
 
 ### 9. Cryptocurrency Support
-**Status:** ❌ Missing
-**Priority:** LOW-MEDIUM
-**Use Case:** Crypto-native users, international settlements
+**Status:** ❌ REMOVED PER REQUIREMENTS
+**Priority:** NOT INCLUDED
+**Decision:** Cryptocurrency support will NOT be implemented
 
-**Recommendation:**
-```yaml
-Sprint: Crypto Integration (30 SP)
-  Features:
-    - BTC, ETH, USDT, USDC support
-    - Crypto deposit & withdrawal
-    - Fiat-to-crypto exchange
-    - Cold storage security
-    - Blockchain reconciliation
-  Compliance:
-    - Travel Rule compliance
-    - Enhanced KYC for crypto
-    - Source of funds verification
-  Providers:
-    - Coinbase Commerce
-    - BitPay
-    - Circle API
-```
+**Rationale:**
+- Regulatory complexity in Nigerian market
+- High compliance overhead
+- Focus on fiat-based payment solutions
+- Reduces scope and accelerates time-to-market
+
+---
 
 ### 10. Investment Products
 **Status:** ⚠️ Savings covered, not investments
@@ -537,21 +537,33 @@ Sprint 36: Advanced Analytics & ML (1 week, 15 SP)
 
 ---
 
-## 💰 Budget Impact
+## 💰 Budget Impact (UPDATED)
 
-**Security Enhancements:** $75K - $150K
+**Security Enhancements:** $25K - $90K (Reduced from $75K-150K)
 - Penetration testing: $15K-30K
-- Security tools (annual): $20K-40K
-- PCI DSS audit: $15K-50K
-- WAF/DDoS: $10K-20K annually
-- SIEM: $15K-30K annually
+- Security tools (annual): $10K-20K (Snyk, SonarQube)
+- Secret management (Infisical): $0 (FREE - self-hosted) ✅
+- PCI DSS audit: $0-30K (only if processing cards)
+- WAF/DDoS (Cloudflare): $200-5K/month ($2.4K-60K/year)
+- SIEM (Self-hosted ELK): $0-5K/year ✅
 
-**Feature Development:** $120K - $200K
-- Mobile money integration: $30K-50K
-- International transfers: $40K-60K
-- Card issuance program: $50K-90K
+**Feature Development:** $0 - $30K (Reduced from $120K-200K)
+- Batch payments: $0 (internal feature) ✅
+- Standing orders: $0 (internal feature) ✅
+- QR payments: $0 (internal feature) ✅
+- Mobile money: $0 development (pay-per-transaction in production) ✅
+- International transfers: REMOVED (too expensive)
+- Cryptocurrency: REMOVED per requirements ✅
+- Card issuance: $0 development (pay-per-card in production) ✅
 
-**Total Phase 1-3:** $195K - $350K
+**Total First Year Cost:** $25K - $90K (Down 74% from original $195K-350K)
+
+**Why So Much Lower:**
+- Infisical is FREE (saves $10K-30K vs Vault/AWS)
+- Most features are internal (saves $90K-150K)
+- Crypto removed (saves $30K)
+- External integrations can be mocked initially (saves $60K)
+- Self-hosted SIEM option (saves $15K-30K)
 
 ---
 
@@ -567,19 +579,23 @@ Sprint 36: Advanced Analytics & ML (1 week, 15 SP)
 7. ✅ PCI DSS compliance (if cards)
 8. ✅ Business continuity testing
 
-### Should-Have (First 6 months)
-1. ✅ Mobile money integration
-2. ✅ Batch payments
-3. ✅ USSD support
-4. ✅ International transfers
-5. ✅ Standing orders
+### Build Now (FREE Internal Features)
+1. ✅ Batch/bulk payments - $0, high B2B value
+2. ✅ Standing orders - $0, high user value
+3. ✅ QR code payments - $0, modern & mobile-friendly
+4. ✅ Infisical secret management - $0, critical for security
 
-### Nice-to-Have (Year 1+)
-1. Card issuance
-2. POS integration
-3. Cryptocurrency
-4. Investment products
-5. Lending module
+### Mock for Later (Paid Integrations)
+1. 🟡 Mobile money integration - Mock now, integrate when profitable
+2. 🟡 Card issuance - Mock with test cards
+3. ❌ USSD support - Only if customers demand
+4. ❌ International transfers - Too expensive for MVP
+5. ❌ POS integration - Not needed for API-only
+
+### Future Consideration (Year 1+)
+1. Investment products (if license obtained)
+2. Lending module (if license obtained)
+3. ~~Cryptocurrency~~ - REMOVED per requirements
 
 ---
 
