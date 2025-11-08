@@ -967,22 +967,30 @@ Alert 4 - API Latency:
 
 ---
 
-### Option B: Grafana Stack (FREE, Popular) ✅ ALSO EXCELLENT
+### Option B: Grafana Stack with Alloy (FREE, Popular) ✅ RECOMMENDED
 
-**Why Grafana Stack:**
+**Why Grafana Stack with Alloy:**
 - Industry standard
 - Beautiful dashboards
 - Huge community
-- Perfect for Prometheus metrics
+- **Grafana Alloy**: Next-gen unified observability agent (replaces Promtail/Agent)
 - Loki for logs (like "Prometheus for logs")
 - Tempo for distributed tracing
+- OpenTelemetry native
+
+**Why Alloy is Better:**
+- Unified agent (replaces Promtail, Grafana Agent, and collectors)
+- Better performance & lower resource usage
+- Native OpenTelemetry support
+- Easier configuration (single config file)
+- Built-in service discovery
+- Dynamic pipeline configuration
 
 **Components:**
 - **Grafana**: Visualization & dashboards
-- **Loki**: Log aggregation
-- **Prometheus**: Metrics collection
+- **Loki**: Log aggregation & search
 - **Tempo**: Distributed tracing
-- **Promtail**: Log shipper
+- **Grafana Alloy**: Unified telemetry collector (NEW!)
 
 #### Setup Guide (Grafana Stack)
 
@@ -1001,6 +1009,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -1019,33 +1028,6 @@ services:
     networks:
       - monitoring
 
-  promtail:
-    image: grafana/promtail:latest
-    container_name: promtail
-    volumes:
-      - ./promtail/config.yaml:/etc/promtail/config.yaml
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/config.yaml
-    networks:
-      - monitoring
-    depends_on:
-      - loki
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    networks:
-      - monitoring
-
   tempo:
     image: grafana/tempo:latest
     container_name: tempo
@@ -1060,6 +1042,30 @@ services:
     networks:
       - monitoring
 
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "12345:12345"  # Alloy UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+      - "9090:9090"    # Prometheus metrics (Alloy replaces Prometheus)
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+      - tempo
+
 networks:
   monitoring:
     driver: bridge
@@ -1067,7 +1073,6 @@ networks:
 volumes:
   grafana-data:
   loki-data:
-  prometheus-data:
   tempo-data:
 ```
 
@@ -1111,100 +1116,317 @@ limits_config:
   reject_old_samples_max_age: 168h
 ```
 
-**Step 3: Configure Promtail**
+**Step 3: Configure Grafana Alloy**
+
+Alloy uses the new "River" configuration language - much more powerful and easier to read than YAML!
+
+```hcl
+// alloy/config.alloy
+
+// ============================================
+// LOGGING PIPELINE
+// ============================================
+
+// Discover Docker containers
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Scrape logs from Docker containers
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.parse_json.receiver]
+}
+
+// Scrape application logs from file
+local.file_match "app_logs" {
+  path_targets = [{
+    __path__ = "/var/log/app/*.log",
+    job      = "app",
+  }]
+}
+
+loki.source.file "app_logs" {
+  targets    = local.file_match.app_logs.targets
+  forward_to = [loki.process.parse_json.receiver]
+}
+
+// Parse JSON logs and extract fields
+loki.process "parse_json" {
+  // Parse JSON structure
+  stage.json {
+    expressions = {
+      level        = "level",
+      message      = "message",
+      user_id      = "user_id",
+      event_type   = "event_type",
+      client_ip    = "client_ip",
+      trace_id     = "trace_id",
+      span_id      = "span_id",
+    }
+  }
+
+  // Add labels for filtering
+  stage.labels {
+    values = {
+      level      = "level",
+      event_type = "event_type",
+    }
+  }
+
+  // Extract security events
+  stage.match {
+    selector = "{event_type=~\"failed_login|suspicious_transaction|fraud_alert\"}"
+
+    stage.labels {
+      values = {
+        security_event = "true",
+      }
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// Write logs to Loki
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ============================================
+// METRICS PIPELINE (Replaces Prometheus)
+// ============================================
+
+// Scrape your NestJS application metrics
+prometheus.scrape "nestjs_app" {
+  targets = [{
+    __address__ = "host.docker.internal:3000",
+    job         = "ubiquitous-tribble-api",
+  }]
+
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Generate metrics from logs
+loki.source.api "log_based_metrics" {
+  http {
+    listen_address = "0.0.0.0"
+    listen_port    = 9999
+  }
+
+  forward_to = [loki.process.metrics.receiver]
+}
+
+loki.process "metrics" {
+  // Count failed logins
+  stage.metrics {
+    metric.counter {
+      name   = "failed_login_attempts_total"
+      source = "event_type"
+
+      match_all = true
+
+      action = "inc"
+
+      value = ""
+
+      max_idle_duration = "1h"
+    }
+  }
+
+  // Count transactions by amount
+  stage.metrics {
+    metric.histogram {
+      name   = "transaction_amount_naira"
+      source = "transaction_amount"
+
+      match_all = true
+
+      buckets = [1000, 5000, 10000, 50000, 100000, 500000, 1000000]
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// Remote write metrics (replaces Prometheus server)
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://alloy:9090/api/v1/write"
+  }
+}
+
+// ============================================
+// TRACING PIPELINE (OpenTelemetry)
+// ============================================
+
+// Receive traces via OTLP (from your NestJS app)
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Batch telemetry for efficiency
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.loki.default.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// Export traces to Tempo
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// Export logs to Loki
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+// Export metrics as Prometheus
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+```
+
+**Step 4: Configure Tempo**
 
 ```yaml
-# promtail/config.yaml
+# tempo/tempo.yaml
 server:
-  http_listen_port: 9080
-  grpc_listen_port: 0
+  http_listen_port: 3200
 
-positions:
-  filename: /tmp/positions.yaml
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
 
-clients:
-  - url: http://loki:3100/loki/api/v1/push
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+    wal:
+      path: /tmp/tempo/wal
 
-scrape_configs:
-  # Docker containers
-  - job_name: containers
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: containerlogs
-          __path__: /var/lib/docker/containers/*/*.log
-
-    pipeline_stages:
-      - json:
-          expressions:
-            output: log
-            stream: stream
-            attrs: attrs
-      - labels:
-          stream:
-      - output:
-          source: output
-
-  # Application logs (JSON format)
-  - job_name: app_logs
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: app
-          __path__: /var/log/app/*.log
-
-    pipeline_stages:
-      - json:
-          expressions:
-            level: level
-            message: message
-            user_id: user_id
-            event_type: event_type
-            client_ip: client_ip
-      - labels:
-          level:
-          event_type:
-      - timestamp:
-          source: timestamp
-          format: RFC3339
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+  storage:
+    path: /tmp/tempo/generator/wal
 ```
 
-**Step 4: Configure Prometheus**
+**Step 5: Integrate with NestJS (OpenTelemetry + Pino)**
 
-```yaml
-# prometheus/prometheus.yml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  # NestJS app metrics
-  - job_name: 'nestjs-app'
-    static_configs:
-      - targets: ['host.docker.internal:3000']
-        labels:
-          service: 'ubiquitous-tribble-api'
-
-  # Node exporter (system metrics)
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-```
-
-**Step 5: Integrate with NestJS**
+Alloy natively supports OpenTelemetry, so integration is much cleaner!
 
 ```typescript
 // Install dependencies
-npm install pino pino-http pino-loki
+npm install @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-http @opentelemetry/exporter-metrics-otlp-http @opentelemetry/exporter-logs-otlp-http pino pino-pretty
 
-// src/logging/grafana-logger.service.ts
+// ============================================
+// src/tracing.ts - OpenTelemetry Setup
+// ============================================
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { Resource } from '@opentelemetry/resources';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+
+const sdk = new NodeSDK({
+  resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'ubiquitous-tribble-api',
+    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
+    [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
+  }),
+
+  // Send traces to Alloy
+  traceExporter: new OTLPTraceExporter({
+    url: 'http://alloy:4318/v1/traces',
+  }),
+
+  // Send metrics to Alloy
+  metricReader: new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({
+      url: 'http://alloy:4318/v1/metrics',
+    }),
+    exportIntervalMillis: 60000, // Export every minute
+  }),
+
+  // Auto-instrument NestJS, HTTP, Database, etc.
+  instrumentations: [
+    getNodeAutoInstrumentations({
+      '@opentelemetry/instrumentation-fs': {
+        enabled: false, // Disable file system instrumentation (too noisy)
+      },
+    }),
+  ],
+});
+
+sdk.start();
+
+process.on('SIGTERM', () => {
+  sdk.shutdown()
+    .then(() => console.log('Tracing terminated'))
+    .catch((error) => console.log('Error terminating tracing', error))
+    .finally(() => process.exit(0));
+});
+
+// ============================================
+// src/main.ts
+// ============================================
+import './tracing'; // MUST be first import!
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { AlloyLoggerService } from './logging/alloy-logger.service';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    logger: new AlloyLoggerService(),
+  });
+
+  await app.listen(3000);
+}
+bootstrap();
+
+// ============================================
+// src/logging/alloy-logger.service.ts
+// ============================================
 import { Injectable, LoggerService } from '@nestjs/common';
 import pino from 'pino';
+import { trace, context } from '@opentelemetry/api';
 
 @Injectable()
-export class GrafanaLoggerService implements LoggerService {
+export class AlloyLoggerService implements LoggerService {
   private logger;
 
   constructor() {
@@ -1215,28 +1437,16 @@ export class GrafanaLoggerService implements LoggerService {
           return { level: label };
         },
       },
+      // Write JSON logs to stdout
+      // Alloy will pick them up via Docker log collection
       transport: {
         targets: [
-          // Console
           {
             target: 'pino-pretty',
             level: 'info',
             options: {
               colorize: true,
-            },
-          },
-          // Loki
-          {
-            target: 'pino-loki',
-            level: 'info',
-            options: {
-              batching: true,
-              interval: 5,
-              host: 'http://loki:3100',
-              labels: {
-                application: 'ubiquitous-tribble',
-                environment: process.env.NODE_ENV || 'development',
-              },
+              translateTime: 'SYS:standard',
             },
           },
         ],
@@ -1244,71 +1454,115 @@ export class GrafanaLoggerService implements LoggerService {
     });
   }
 
+  // Add trace context to every log
+  private enrichWithTrace(data: any = {}) {
+    const span = trace.getActiveSpan();
+    if (span) {
+      const spanContext = span.spanContext();
+      return {
+        ...data,
+        trace_id: spanContext.traceId,
+        span_id: spanContext.spanId,
+      };
+    }
+    return data;
+  }
+
   log(message: string, context?: string) {
-    this.logger.info({ context }, message);
+    this.logger.info(this.enrichWithTrace({ context }), message);
   }
 
   error(message: string, trace?: string, context?: string) {
-    this.logger.error({ trace, context }, message);
+    this.logger.error(this.enrichWithTrace({ trace, context }), message);
   }
 
   warn(message: string, context?: string) {
-    this.logger.warn({ context }, message);
+    this.logger.warn(this.enrichWithTrace({ context }), message);
+  }
+
+  debug(message: string, context?: string) {
+    this.logger.debug(this.enrichWithTrace({ context }), message);
+  }
+
+  verbose(message: string, context?: string) {
+    this.logger.trace(this.enrichWithTrace({ context }), message);
   }
 
   // Security event logging
   logSecurityEvent(eventType: string, data: any) {
-    this.logger.warn({
+    this.logger.warn(this.enrichWithTrace({
       event_type: eventType,
       security_event: true,
       ...data,
-    }, 'Security Event');
+    }), 'Security Event Detected');
   }
 }
 
-// Prometheus metrics
-// npm install @willsoto/nestjs-prometheus prom-client
-
-// src/app.module.ts
-import { PrometheusModule } from '@willsoto/nestjs-prometheus';
-
-@Module({
-  imports: [
-    PrometheusModule.register({
-      path: '/metrics',
-      defaultMetrics: {
-        enabled: true,
-      },
-    }),
-  ],
-})
-export class AppModule {}
-
-// Create custom metrics
+// ============================================
 // src/metrics/custom-metrics.service.ts
+// ============================================
 import { Injectable } from '@nestjs/common';
-import { Counter, Histogram } from 'prom-client';
-import { InjectMetric } from '@willsoto/nestjs-prometheus';
+import { metrics } from '@opentelemetry/api';
 
 @Injectable()
 export class CustomMetricsService {
-  constructor(
-    @InjectMetric('http_requests_total')
-    public requestCounter: Counter<string>,
-    @InjectMetric('http_request_duration_seconds')
-    public requestDuration: Histogram<string>,
-    @InjectMetric('failed_login_attempts_total')
-    public failedLoginCounter: Counter<string>,
-    @InjectMetric('transaction_amount_total')
-    public transactionAmount: Counter<string>,
-  ) {}
+  private meter = metrics.getMeter('ubiquitous-tribble-api');
+
+  // Counter for failed logins
+  private failedLoginCounter = this.meter.createCounter('failed_login_attempts_total', {
+    description: 'Total number of failed login attempts',
+  });
+
+  // Counter for transactions
+  private transactionCounter = this.meter.createCounter('transaction_total', {
+    description: 'Total number of transactions',
+  });
+
+  // Histogram for transaction amounts
+  private transactionAmountHistogram = this.meter.createHistogram('transaction_amount_naira', {
+    description: 'Distribution of transaction amounts in Naira',
+  });
 
   recordFailedLogin(ip: string) {
-    this.failedLoginCounter.inc({ ip });
+    this.failedLoginCounter.add(1, { client_ip: ip });
   }
 
-  recordTransaction(amount: number, currency: string) {
-    this.transactionAmount.inc({ currency }, amount);
+  recordTransaction(amount: number, currency: string, type: string) {
+    this.transactionCounter.add(1, { currency, type });
+    this.transactionAmountHistogram.record(amount, { currency });
+  }
+}
+
+// ============================================
+// Usage Example
+// ============================================
+@Injectable()
+export class AuthService {
+  constructor(
+    private logger: AlloyLoggerService,
+    private metrics: CustomMetricsService,
+  ) {}
+
+  async login(email: string, password: string, clientIp: string) {
+    try {
+      const user = await this.validateUser(email, password);
+
+      this.logger.log(`Successful login for ${email}`, 'AuthService');
+
+      return user;
+    } catch (error) {
+      // Log security event
+      this.logger.logSecurityEvent('failed_login', {
+        email,
+        client_ip: clientIp,
+        reason: error.message,
+      });
+
+      // Record metric
+      this.metrics.recordFailedLogin(clientIp);
+
+      throw error;
+    }
   }
 }
 ```
@@ -1319,8 +1573,10 @@ Access Grafana at `http://localhost:3000` (admin/admin)
 
 **Add Data Sources:**
 1. Loki: http://loki:3100
-2. Prometheus: http://prometheus:9090
+2. Prometheus: http://alloy:9090 (Alloy serves Prometheus metrics)
 3. Tempo: http://tempo:3200
+
+**Bonus:** Access Alloy UI at http://localhost:12345 to see the live pipeline!
 
 **Dashboard 1: Security Events**
 
@@ -1411,7 +1667,9 @@ Alert 3 - Slow API:
   Notification: Slack
 ```
 
-**Cost:** $0 (requires ~3GB RAM, 40GB storage)
+**Cost:** $0 (requires ~2.5GB RAM, 35GB storage)
+
+**Note:** Alloy is more efficient than the old Promtail + Prometheus + Grafana Agent setup!
 
 ---
 
