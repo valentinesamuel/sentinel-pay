@@ -54,9 +54,16 @@
 | EPIC-15 | Reporting & Analytics | Medium - Business intelligence | 80 | P2 | Not Started |
 | EPIC-16 | Webhooks & Integration | Medium - Developer experience | 50 | P2 | Not Started |
 | EPIC-17 | Mock Provider Service | Critical - Development enablement | 140 | P0 | In Progress |
+| EPIC-18 | Modern Payment Methods | High - QR codes, payment links | 25 | P1 | Not Started |
+| EPIC-19 | Batch Processing | High - Bulk payments | 35 | P1 | Not Started |
+| EPIC-20 | Mobile Money | High - MTN MoMo, Airtel, M-Pesa | 35 | P1 | Not Started |
+| EPIC-21 | Recurring Payments | High - Standing orders, direct debit | 20 | P1 | Not Started |
+| EPIC-22 | Customer Experience | Critical - Support system | 35 | P0 | Not Started |
+| EPIC-23 | E-commerce Integration | Medium - Plugins | 15 | P2 | Not Started |
+| EPIC-24 | Internationalization | Medium - Multi-language | 10 | P2 | Not Started |
 
-**Total Estimated Story Points:** ~1,648 (includes Sprint 6A: +48 SP)
-**Estimated Duration:** 21 sprints (42 weeks / 10.5 months)
+**Total Estimated Story Points:** ~1,963 (includes all new sprints 24-33: +315 SP)
+**Estimated Duration:** 33 sprints (67 weeks / ~16 months including security & enhancements)
 
 ---
 
@@ -279,6 +286,208 @@ This sprint was added to provide a comprehensive mock card issuance service that
 **Goal:** Complete API docs, deployment guides, final polish
 **Story Points:** 25
 **Duration:** Week 47-48
+
+---
+
+### Sprint 24: Security Hardening & Penetration Testing (NEW)
+**Goal:** Production security readiness - penetration testing, vulnerability scanning, SIEM setup
+**Story Points:** 45
+**Duration:** Week 49-50 (2 weeks)
+**Epics:** EPIC-1 (Core Infrastructure & Security)
+
+**Features:**
+- Penetration testing engagement
+- Vulnerability assessment and remediation
+- SIEM/SOAR implementation (Wazuh/ELK Stack)
+- WAF/DDoS protection (Cloudflare)
+- Security audit and compliance checks
+- SSL/TLS configuration hardening
+- Rate limiting enhancement
+- API security testing
+
+**Rationale:**
+Security hardening is CRITICAL before production launch. This sprint ensures:
+- Identifies and fixes vulnerabilities before attackers do
+- Meets PCI DSS and CBN security requirements
+- Implements monitoring and alerting
+- Protects against common attack vectors
+
+**Cost:** $25,000-45,000 (penetration testing + security tools)
+
+---
+
+### Sprint 25: Security Monitoring & Incident Response (NEW)
+**Goal:** Production monitoring, alerting, and incident response procedures
+**Story Points:** 30
+**Duration:** Week 51-52 (2 weeks)
+**Epics:** EPIC-1
+
+**Features:**
+- 24/7 monitoring setup
+- Alert configuration (PagerDuty/OpsGenie)
+- Incident response playbooks
+- Log aggregation and analysis
+- Security dashboard
+- Backup and disaster recovery testing
+
+---
+
+### Sprint 26: QR Code Payments & Payment Links (NEW)
+**Goal:** Implement modern payment methods - QR codes and shareable payment links
+**Story Points:** 25
+**Duration:** Week 53-54 (2 weeks)
+**Epics:** EPIC-18 (Modern Payment Methods)
+
+**Features:**
+- Dynamic QR code generation
+- Static merchant QR codes
+- QR code scanning and processing
+- Shareable payment links
+- Payment link expiry management
+- Payment link analytics
+
+**Cost:** $0 (free npm libraries)
+
+---
+
+### Sprint 27: Batch Payments & Mobile Money Mocks (NEW)
+**Goal:** Bulk payment processing and mobile money integration preparation
+**Story Points:** 35
+**Duration:** Week 55-56 (2 weeks)
+**Epics:** EPIC-19 (Batch Processing), EPIC-20 (Mobile Money)
+
+**Features:**
+- CSV/Excel batch upload
+- Batch validation and approval
+- Scheduled batch processing
+- Payout batching
+- Mock MTN MoMo service
+- Mock Airtel Money service
+- Mock M-Pesa service
+- Mobile money deposit/withdrawal simulation
+
+**Cost:** $0 (mock services, real integration when profitable)
+
+---
+
+### Sprint 28: Standing Orders & Direct Debit (NEW)
+**Goal:** Recurring payment automation and mandate management
+**Story Points:** 20
+**Duration:** Week 57-58 (2 weeks)
+**Epics:** EPIC-21 (Recurring Payments)
+
+**Features:**
+- Standing order creation
+- Direct debit mandates
+- Recurring payment scheduling
+- Auto-charge processing
+- Failed payment retry logic
+- Subscription management
+
+**Cost:** $0 (internal cron jobs)
+
+---
+
+### Sprint 29: Statement Generation & Export (NEW)
+**Goal:** Transaction statements and data export capabilities
+**Story Points:** 15
+**Duration:** Week 59 (1 week)
+**Epics:** EPIC-15 (Reporting & Analytics)
+
+**Features:**
+- PDF statement generation
+- CSV transaction export
+- Monthly/quarterly statements
+- Account balance reports
+- Custom date range reports
+
+**Cost:** $0 (internal feature)
+
+---
+
+### Sprint 30: Compliance Automation - CBN & Tax (NEW)
+**Goal:** Regulatory reporting and tax calculation automation
+**Story Points:** 30
+**Duration:** Week 60-61 (2 weeks)
+**Epics:** EPIC-13 (KYC & Compliance)
+
+**Features:**
+- CBN monthly reporting
+- Tax calculation (VAT, WHT)
+- Sanctions screening (OFAC, UN)
+- Regulatory filing automation
+- Compliance dashboard
+- Audit trail enhancements
+
+**Cost:** $0 (internal) + optional $500-2K/year for sanctions data feeds
+
+---
+
+### Sprint 31: Customer Support System (NEW)
+**Goal:** Support ticket management and customer service tools
+**Story Points:** 35
+**Duration:** Week 62-63 (2 weeks)
+**Epics:** EPIC-22 (Customer Experience)
+
+**Features:**
+- Support ticket system
+- Live chat integration
+- Knowledge base / FAQ
+- User preference management
+- Notification center
+- Support analytics
+
+**Cost:** $0 (internal) or $50-200/mo (Zendesk/Intercom)
+
+---
+
+### Sprint 32: Developer SDKs (NEW)
+**Goal:** Multi-language SDKs for API integration
+**Story Points:** 30
+**Duration:** Week 64-65 (2 weeks)
+**Epics:** EPIC-16 (Webhooks & Integration)
+
+**Features:**
+- Node.js SDK
+- Python SDK
+- PHP SDK
+- Developer dashboard
+- Enhanced API documentation
+- Postman collections
+
+**Cost:** $0
+
+---
+
+### Sprint 33: E-commerce Plugins & Multi-Language (NEW)
+**Goal:** E-commerce platform integration and internationalization
+**Story Points:** 25
+**Duration:** Week 66-67 (2 weeks)
+**Epics:** EPIC-23 (E-commerce Integration), EPIC-24 (Internationalization)
+
+**Features:**
+- WooCommerce plugin
+- Shopify plugin
+- Multi-language support (i18n)
+- English, Yoruba, Hausa, Igbo translations
+- Currency localization
+
+**Cost:** $0 + translation services ($500-2K)
+
+---
+
+**Future Phases (Year 2+):**
+
+### Phase 3: Advanced Financial Products
+**Goal:** Savings, loans, investments (requires licenses)
+**Features:**
+- Savings accounts with interest
+- Fixed deposits
+- Loan/credit products
+- Buy Now Pay Later (BNPL)
+- Investment products
+
+**Cost:** TBD (requires banking/lending licenses)
 
 ---
 
