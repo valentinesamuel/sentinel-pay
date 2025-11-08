@@ -1388,6 +1388,1307 @@ CREATE TABLE tax_returns (
 
 ---
 
-Due to character limits, I'll continue with the rest of Sprint 30 in the next response. This shows the level of detail needed - each user story needs this depth!
+#### Testing Requirements
 
-Would you like me to continue with the remaining user stories for Sprint 30, then move to other critical sprints (27, 31)?
+**Unit Tests (18 tests):**
+- Calculate VAT correctly (7.5%)
+- Calculate WHT correctly (5-10%)
+- Tax exemption for government entities
+- Tax exemption for NGOs
+- VAT applicable to payment transactions
+- WHT applicable to fee transactions
+- Tax calculation for zero-fee transactions
+- Tax rounding to nearest kobo
+- Tax period calculation
+- Generate VAT return for valid period
+- Generate WHT return for valid period
+- VAT due date calculation
+- WHT due date calculation
+- Tax invoice number generation
+- Tax record storage
+- Tax audit trail
+- Handle tax rate changes
+- Multiple tax calculations concurrently
+
+**Integration Tests (8 tests):**
+- Full transaction flow with tax calculation
+- Monthly tax return generation
+- Tax return filing workflow
+- Tax reconciliation (collected vs. remitted)
+- Tax export to accounting software
+- Historical tax data retrieval
+- Tax dashboard with real data
+- Concurrent tax calculations
+
+**E2E Tests (5 tests):**
+- Process payment → calculate tax → generate receipt
+- Generate monthly VAT return → review → file
+- Generate monthly WHT return → review → file
+- Tax audit report for FIRS
+- Tax exemption workflow
+
+---
+
+#### Definition of Done
+
+- [ ] All acceptance criteria met
+- [ ] Tax calculations verified with accountant
+- [ ] VAT and WHT rates configurable
+- [ ] All tests passing (31+ tests)
+- [ ] Tax records stored for 7 years
+- [ ] Finance officer training completed
+- [ ] FIRS filing format validated
+- [ ] Code reviewed and merged
+
+---
+
+### 📘 User Story: US-30.1.3 - Sanctions Screening Integration
+
+**Story ID:** US-30.1.3
+**Feature:** FEATURE-13.4 (Regulatory Reporting)
+**Epic:** EPIC-13 (KYC & Compliance)
+
+**Story Points:** 7
+**Priority:** P0 (Critical - Legal Requirement)
+**Sprint:** Sprint 30
+**Status:** 🔄 Not Started
+
+---
+
+#### User Story
+
+```
+As a compliance officer
+I want automated sanctions screening against OFAC, UN, and EU lists
+So that we comply with international sanctions and prevent illegal transactions
+```
+
+---
+
+#### Business Value
+
+**Value Statement:**
+Sanctions screening is mandatory for financial institutions operating internationally. Failure to screen against OFAC (US Office of Foreign Assets Control), UN, and EU sanctions lists can result in severe penalties, license revocation, and criminal prosecution.
+
+**Impact:**
+- **Critical:** Legal requirement for international transfers
+- **Risk Mitigation:** Prevents transactions with sanctioned entities
+- **Reputation:** Protects brand from sanctions violations
+- **Penalties:** Avoid $10M+ fines and criminal liability
+
+**Success Criteria:**
+- 100% of users screened before account activation
+- 100% of transactions screened in real-time
+- < 2 seconds screening time per check
+- Zero false negatives (all sanctioned entities caught)
+- < 5% false positives (legitimate users flagged)
+- Sanctions list updated daily
+
+---
+
+#### Acceptance Criteria
+
+**Functional:**
+- [ ] **AC1:** Screen users against OFAC SDN list
+- [ ] **AC2:** Screen users against UN sanctions list
+- [ ] **AC3:** Screen users against EU sanctions list
+- [ ] **AC4:** Screen at user registration
+- [ ] **AC5:** Screen at KYC verification
+- [ ] **AC6:** Re-screen existing users daily
+- [ ] **AC7:** Screen transaction counterparties
+- [ ] **AC8:** Fuzzy name matching (handles typos, aliases)
+- [ ] **AC9:** Match on full name, DOB, nationality, passport
+- [ ] **AC10:** Block transactions to sanctioned entities
+- [ ] **AC11:** Freeze accounts of sanctioned users
+- [ ] **AC12:** Alert compliance officer on match
+- [ ] **AC13:** Manual review workflow for potential matches
+- [ ] **AC14:** Whitelist false positives
+- [ ] **AC15:** Update sanctions lists automatically (daily)
+- [ ] **AC16:** Audit trail for all screenings
+- [ ] **AC17:** Screening result stored permanently
+- [ ] **AC18:** Export screening results for audits
+- [ ] **AC19:** Dashboard showing screening statistics
+- [ ] **AC20:** Sanctions list version tracking
+
+**Security:**
+- [ ] **AC21:** Sanctions data encrypted at rest
+- [ ] **AC22:** Access restricted to compliance officers
+- [ ] **AC23:** Audit log for all matches
+- [ ] **AC24:** Alert on repeated screening attempts
+- [ ] **AC25:** Prevent sanctions list tampering
+
+**Non-Functional:**
+- [ ] **AC26:** Screening < 2 seconds per check
+- [ ] **AC27:** Support 10,000+ screenings per day
+- [ ] **AC28:** 99.9% uptime for screening service
+- [ ] **AC29:** Handle sanctions list updates without downtime
+
+---
+
+#### Technical Specifications
+
+**Sanctions Screening Service:**
+
+```typescript
+interface SanctionsList {
+  list_name: string;           // "OFAC SDN", "UN", "EU"
+  list_version: string;         // Version/date
+  total_entries: number;
+  last_updated: Date;
+}
+
+interface SanctionsMatch {
+  match_score: number;          // 0-100 (confidence)
+  list_name: string;            // Which list matched
+  list_entry: {
+    name: string;
+    aliases: string[];
+    dob: string;
+    nationality: string;
+    passport_numbers: string[];
+    address: string;
+    sanctions_reason: string;
+  };
+  user_data: {
+    name: string;
+    dob: string;
+    nationality: string;
+    passport: string;
+  };
+}
+
+interface SanctionsScreeningResult {
+  screening_id: string;
+  user_id: string;
+  screening_type: 'REGISTRATION' | 'KYC' | 'TRANSACTION' | 'PERIODIC';
+  status: 'CLEAR' | 'POTENTIAL_MATCH' | 'CONFIRMED_MATCH';
+  matches: SanctionsMatch[];
+  screened_at: Date;
+  reviewed_by?: string;
+  review_notes?: string;
+}
+
+@Injectable()
+export class SanctionsScreeningService {
+  constructor(
+    @InjectRepository(SanctionsScreening)
+    private screeningRepository: Repository<SanctionsScreening>,
+    @InjectRepository(SanctionsList)
+    private sanctionsListRepository: Repository<SanctionsList>,
+    private httpService: HttpService,
+  ) {}
+
+  /**
+   * Screen user against all sanctions lists
+   */
+  async screenUser(
+    userId: string,
+    screeningType: 'REGISTRATION' | 'KYC' | 'TRANSACTION' | 'PERIODIC'
+  ): Promise<SanctionsScreeningResult> {
+    const user = await this.getUserDetails(userId);
+
+    // Screen against all lists
+    const ofacMatches = await this.screenAgainstOFAC(user);
+    const unMatches = await this.screenAgainstUN(user);
+    const euMatches = await this.screenAgainstEU(user);
+
+    const allMatches = [...ofacMatches, ...unMatches, ...euMatches];
+
+    // Determine status
+    let status: 'CLEAR' | 'POTENTIAL_MATCH' | 'CONFIRMED_MATCH' = 'CLEAR';
+
+    if (allMatches.length > 0) {
+      const highConfidenceMatch = allMatches.some(m => m.match_score >= 90);
+      status = highConfidenceMatch ? 'CONFIRMED_MATCH' : 'POTENTIAL_MATCH';
+    }
+
+    // Store screening result
+    const result: SanctionsScreeningResult = {
+      screening_id: uuidv4(),
+      user_id: userId,
+      screening_type: screeningType,
+      status,
+      matches: allMatches,
+      screened_at: new Date(),
+    };
+
+    await this.screeningRepository.save(result);
+
+    // Alert compliance if match found
+    if (status !== 'CLEAR') {
+      await this.alertCompliance(result);
+    }
+
+    // Block user if confirmed match
+    if (status === 'CONFIRMED_MATCH') {
+      await this.freezeUserAccount(userId, 'SANCTIONS_MATCH');
+    }
+
+    return result;
+  }
+
+  /**
+   * Screen against OFAC SDN list
+   */
+  private async screenAgainstOFAC(user: any): Promise<SanctionsMatch[]> {
+    // Load OFAC SDN list (cached in database)
+    const ofacList = await this.sanctionsListRepository.findOne({
+      where: { list_name: 'OFAC_SDN' }
+    });
+
+    const matches: SanctionsMatch[] = [];
+
+    // Fuzzy name matching
+    for (const entry of ofacList.entries) {
+      const nameScore = this.calculateNameMatchScore(user.full_name, entry.name);
+
+      // Check aliases
+      let maxAliasScore = 0;
+      for (const alias of entry.aliases || []) {
+        const aliasScore = this.calculateNameMatchScore(user.full_name, alias);
+        maxAliasScore = Math.max(maxAliasScore, aliasScore);
+      }
+
+      const finalScore = Math.max(nameScore, maxAliasScore);
+
+      // Additional checks (DOB, nationality)
+      let adjustedScore = finalScore;
+      if (user.dob === entry.dob) adjustedScore += 10;
+      if (user.nationality === entry.nationality) adjustedScore += 5;
+
+      // Threshold: 75+ is potential match
+      if (adjustedScore >= 75) {
+        matches.push({
+          match_score: Math.min(adjustedScore, 100),
+          list_name: 'OFAC SDN',
+          list_entry: entry,
+          user_data: {
+            name: user.full_name,
+            dob: user.dob,
+            nationality: user.nationality,
+            passport: user.passport_number,
+          },
+        });
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Screen against UN sanctions list
+   */
+  private async screenAgainstUN(user: any): Promise<SanctionsMatch[]> {
+    // Similar implementation to OFAC
+    return [];
+  }
+
+  /**
+   * Screen against EU sanctions list
+   */
+  private async screenAgainstEU(user: any): Promise<SanctionsMatch[]> {
+    // Similar implementation to OFAC
+    return [];
+  }
+
+  /**
+   * Calculate name match score using Levenshtein distance
+   */
+  private calculateNameMatchScore(name1: string, name2: string): number {
+    // Normalize names
+    const n1 = name1.toLowerCase().trim();
+    const n2 = name2.toLowerCase().trim();
+
+    // Exact match
+    if (n1 === n2) return 100;
+
+    // Calculate Levenshtein distance
+    const distance = this.levenshteinDistance(n1, n2);
+    const maxLength = Math.max(n1.length, n2.length);
+
+    // Convert distance to similarity score (0-100)
+    const similarity = ((maxLength - distance) / maxLength) * 100;
+
+    return Math.round(similarity);
+  }
+
+  /**
+   * Levenshtein distance algorithm (fuzzy matching)
+   */
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix: number[][] = [];
+
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // substitution
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j] + 1      // deletion
+          );
+        }
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  /**
+   * Update sanctions lists (daily cron job)
+   */
+  @Cron('0 2 * * *')  // 2 AM daily
+  async updateSanctionsLists(): Promise<void> {
+    // Update OFAC SDN list
+    await this.updateOFACList();
+
+    // Update UN sanctions list
+    await this.updateUNList();
+
+    // Update EU sanctions list
+    await this.updateEUList();
+
+    // Re-screen all active users
+    await this.rescreenAllUsers();
+  }
+
+  /**
+   * Download and update OFAC SDN list
+   */
+  private async updateOFACList(): Promise<void> {
+    // OFAC provides CSV/XML downloads
+    const url = 'https://www.treasury.gov/ofac/downloads/sdn.csv';
+
+    const response = await this.httpService.get(url).toPromise();
+    const entries = this.parseOFACCSV(response.data);
+
+    await this.sanctionsListRepository.save({
+      list_name: 'OFAC_SDN',
+      list_version: new Date().toISOString(),
+      total_entries: entries.length,
+      last_updated: new Date(),
+      entries,
+    });
+  }
+
+  /**
+   * Alert compliance officer of match
+   */
+  private async alertCompliance(result: SanctionsScreeningResult): Promise<void> {
+    // Send email, Slack, PagerDuty alert
+    // TODO: Implement notification service
+  }
+
+  /**
+   * Freeze user account
+   */
+  private async freezeUserAccount(userId: string, reason: string): Promise<void> {
+    // TODO: Implement account freeze
+  }
+}
+```
+
+**Database Schema:**
+
+```sql
+-- Sanctions screening results
+CREATE TABLE sanctions_screenings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  screening_id VARCHAR(100) UNIQUE NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id),
+
+  -- Screening details
+  screening_type VARCHAR(20) NOT NULL,  -- REGISTRATION, KYC, TRANSACTION, PERIODIC
+  status VARCHAR(20) NOT NULL,          -- CLEAR, POTENTIAL_MATCH, CONFIRMED_MATCH
+
+  -- Matches (JSONB for flexibility)
+  matches JSONB,
+
+  -- Review
+  reviewed_by VARCHAR(100),
+  review_notes TEXT,
+  reviewed_at TIMESTAMP,
+
+  -- Timestamps
+  screened_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+
+  -- Indexes
+  INDEX idx_sanctions_user_id (user_id),
+  INDEX idx_sanctions_status (status),
+  INDEX idx_sanctions_type (screening_type),
+  INDEX idx_sanctions_screened_at (screened_at)
+);
+
+-- Sanctions lists (cached)
+CREATE TABLE sanctions_lists (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  list_name VARCHAR(50) NOT NULL,       -- OFAC_SDN, UN, EU
+  list_version VARCHAR(50) NOT NULL,
+  total_entries INTEGER NOT NULL,
+
+  -- List data (JSONB for large datasets)
+  entries JSONB NOT NULL,
+
+  -- Timestamps
+  last_updated TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+
+  -- Indexes
+  UNIQUE (list_name, list_version),
+  INDEX idx_sanctions_lists_name (list_name),
+  INDEX idx_sanctions_lists_updated (last_updated)
+);
+
+-- Sanctions whitelist (false positives)
+CREATE TABLE sanctions_whitelist (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id),
+
+  -- Match details
+  list_name VARCHAR(50) NOT NULL,
+  list_entry_name VARCHAR(255) NOT NULL,
+  match_score INTEGER NOT NULL,
+
+  -- Approval
+  whitelisted_by VARCHAR(100) NOT NULL,
+  whitelisted_at TIMESTAMP NOT NULL,
+  reason TEXT NOT NULL,
+
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+
+  -- Indexes
+  INDEX idx_whitelist_user_id (user_id),
+  UNIQUE (user_id, list_name, list_entry_name)
+);
+```
+
+---
+
+#### Testing Requirements
+
+**Unit Tests (15 tests):**
+- Screen user against OFAC list
+- Screen user against UN list
+- Screen user against EU list
+- Fuzzy name matching (exact match)
+- Fuzzy name matching (typo)
+- Fuzzy name matching (alias)
+- DOB match increases score
+- Nationality match increases score
+- Calculate Levenshtein distance
+- Threshold detection (75+ is match)
+- Whitelist false positives
+- Update sanctions lists
+- Parse OFAC CSV format
+- Match score calculation
+- Handle empty sanctions list
+
+**Integration Tests (8 tests):**
+- Full screening workflow (registration → screening → result)
+- Daily sanctions list update
+- Re-screen all users after list update
+- Alert compliance on match
+- Freeze account on confirmed match
+- Manual review workflow
+- Whitelist approval workflow
+- Historical screening retrieval
+
+**E2E Tests (5 tests):**
+- Register user → sanctions screening → approved
+- Register user → sanctions match → account frozen
+- KYC verification with sanctions screening
+- Transaction to sanctioned country → blocked
+- Compliance officer review potential match
+
+---
+
+#### Definition of Done
+
+- [ ] All acceptance criteria met
+- [ ] Screening against OFAC, UN, EU lists
+- [ ] Fuzzy matching implemented (Levenshtein)
+- [ ] All tests passing (28+ tests)
+- [ ] Daily sanctions list update working
+- [ ] Compliance alert system tested
+- [ ] Account freeze workflow tested
+- [ ] Code reviewed and merged
+
+---
+
+### 📘 User Story: US-30.1.4 - AML Transaction Monitoring & SAR Generation
+
+**Story ID:** US-30.1.4
+**Feature:** FEATURE-13.4 (Regulatory Reporting)
+**Epic:** EPIC-13 (KYC & Compliance)
+
+**Story Points:** 7
+**Priority:** P0 (Critical - Legal Requirement)
+**Sprint:** Sprint 30
+**Status:** 🔄 Not Started
+
+---
+
+#### User Story
+
+```
+As a compliance officer
+I want automated AML transaction monitoring and Suspicious Activity Report (SAR) generation
+So that we detect and report money laundering activities as required by EFCC regulations
+```
+
+---
+
+#### Business Value
+
+**Value Statement:**
+Anti-Money Laundering (AML) monitoring is mandatory under Nigerian EFCC (Economic and Financial Crimes Commission) regulations. Financial institutions must detect suspicious patterns, file SARs, and maintain Customer Due Diligence (CDD) records.
+
+**Impact:**
+- **Critical:** Legal requirement - must report suspicious activities
+- **Risk Mitigation:** Prevents money laundering through platform
+- **Penalties:** Avoid license revocation and criminal prosecution
+- **Reputation:** Demonstrates commitment to financial integrity
+
+**Success Criteria:**
+- 100% of large transactions monitored (> ₦5M)
+- Suspicious patterns detected automatically
+- SARs filed within 24 hours of detection
+- < 10% false positive rate
+- Zero missed suspicious activities (regulatory audits)
+- Complete audit trail
+
+---
+
+#### Acceptance Criteria
+
+**Functional:**
+- [ ] **AC1:** Monitor transactions for suspicious patterns
+- [ ] **AC2:** Flag large cash transactions (> ₦5M single, > ₦10M cumulative daily)
+- [ ] **AC3:** Flag structuring (multiple transactions just below threshold)
+- [ ] **AC4:** Flag rapid movement of funds (in and out within hours)
+- [ ] **AC5:** Flag transactions to high-risk countries
+- [ ] **AC6:** Flag transactions with unusual velocity (100+ per day)
+- [ ] **AC7:** Flag round-number transactions (exact ₦1M, ₦5M)
+- [ ] **AC8:** Flag mismatched transaction patterns vs. user profile
+- [ ] **AC9:** Track Customer Due Diligence (CDD) status
+- [ ] **AC10:** Enhanced Due Diligence (EDD) for high-risk customers
+- [ ] **AC11:** Generate Suspicious Activity Report (SAR)
+- [ ] **AC12:** SAR includes: who, what, when, why suspicious
+- [ ] **AC13:** File SAR with NFIU (Nigerian Financial Intelligence Unit)
+- [ ] **AC14:** Alert compliance officer on suspicious activity
+- [ ] **AC15:** Manual investigation workflow
+- [ ] **AC16:** Close or escalate alerts
+- [ ] **AC17:** Dashboard with AML metrics
+- [ ] **AC18:** Historical SAR reports
+- [ ] **AC19:** AML risk scoring (low, medium, high, critical)
+- [ ] **AC20:** Automatic account review triggers
+
+**Security:**
+- [ ] **AC21:** AML data encrypted at rest
+- [ ] **AC22:** Access restricted to compliance officers
+- [ ] **AC23:** Audit trail for all investigations
+- [ ] **AC24:** Confidential SAR filing (user not notified)
+- [ ] **AC25:** Prevent tipping off suspects
+
+**Non-Functional:**
+- [ ] **AC26:** Real-time monitoring (< 5 seconds)
+- [ ] **AC27:** Support 1M+ transactions per day
+- [ ] **AC28:** 99.9% uptime for monitoring
+- [ ] **AC29:** SAR generation < 10 minutes
+
+---
+
+#### Technical Specifications
+
+**AML Monitoring Service:**
+
+```typescript
+interface AMLRule {
+  rule_id: string;
+  rule_name: string;
+  description: string;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  threshold: any;
+  enabled: boolean;
+}
+
+const AML_RULES: AMLRule[] = [
+  {
+    rule_id: 'AML-001',
+    rule_name: 'Large Cash Transaction',
+    description: 'Single transaction > ₦5,000,000',
+    risk_level: 'HIGH',
+    threshold: { amount: 500000000 },  // 5M in kobo
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-002',
+    rule_name: 'Cumulative Daily Threshold',
+    description: 'Daily total > ₦10,000,000',
+    risk_level: 'HIGH',
+    threshold: { daily_amount: 1000000000 },  // 10M in kobo
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-003',
+    rule_name: 'Structuring Detection',
+    description: 'Multiple transactions just below reporting threshold',
+    risk_level: 'CRITICAL',
+    threshold: { count: 3, amount_range: [400000000, 499999999] },  // 4M-4.99M
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-004',
+    rule_name: 'Rapid Fund Movement',
+    description: 'Deposit and withdrawal within 2 hours',
+    risk_level: 'HIGH',
+    threshold: { time_window: 7200 },  // 2 hours in seconds
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-005',
+    rule_name: 'High-Risk Country',
+    description: 'Transaction to FATF high-risk jurisdiction',
+    risk_level: 'CRITICAL',
+    threshold: { countries: ['IR', 'KP', 'MM'] },  // Iran, North Korea, Myanmar
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-006',
+    rule_name: 'Transaction Velocity',
+    description: '> 100 transactions in single day',
+    risk_level: 'MEDIUM',
+    threshold: { daily_count: 100 },
+    enabled: true,
+  },
+  {
+    rule_id: 'AML-007',
+    rule_name: 'Round Number',
+    description: 'Exact round numbers (₦1M, ₦5M, ₦10M)',
+    risk_level: 'LOW',
+    threshold: { round_amounts: [100000000, 500000000, 1000000000] },
+    enabled: true,
+  },
+];
+
+interface AMLAlert {
+  alert_id: string;
+  user_id: string;
+  transaction_id?: string;
+  rule_id: string;
+  rule_name: string;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description: string;
+  details: any;
+  status: 'OPEN' | 'INVESTIGATING' | 'CLOSED' | 'ESCALATED' | 'SAR_FILED';
+  assigned_to?: string;
+  created_at: Date;
+  closed_at?: Date;
+  closure_reason?: string;
+}
+
+interface SuspiciousActivityReport {
+  sar_id: string;
+  user_id: string;
+  alert_ids: string[];
+
+  // Subject information
+  subject: {
+    name: string;
+    dob: string;
+    address: string;
+    phone: string;
+    email: string;
+    account_number: string;
+  };
+
+  // Suspicious activity details
+  activity: {
+    type: string;              // "Structuring", "Layering", "Unusual Pattern"
+    description: string;        // Detailed narrative
+    start_date: Date;
+    end_date: Date;
+    total_amount: number;
+    transaction_count: number;
+    transactions: string[];     // Transaction IDs
+  };
+
+  // Why suspicious
+  suspicion_reason: string;
+
+  // Filing details
+  filed_by: string;
+  filed_date: Date;
+  nfiu_reference?: string;
+
+  status: 'DRAFT' | 'FILED' | 'ACKNOWLEDGED';
+}
+
+@Injectable()
+export class AMLMonitoringService {
+  constructor(
+    @InjectRepository(AMLAlert)
+    private alertRepository: Repository<AMLAlert>,
+    @InjectRepository(SAR)
+    private sarRepository: Repository<SAR>,
+    @InjectRepository(Transaction)
+    private transactionRepository: Repository<Transaction>,
+  ) {}
+
+  /**
+   * Monitor transaction for AML violations
+   */
+  async monitorTransaction(transaction: Transaction): Promise<AMLAlert[]> {
+    const alerts: AMLAlert[] = [];
+
+    for (const rule of AML_RULES) {
+      if (!rule.enabled) continue;
+
+      const violation = await this.checkRule(transaction, rule);
+
+      if (violation) {
+        const alert = await this.createAlert(transaction, rule, violation);
+        alerts.push(alert);
+
+        // Alert compliance for HIGH/CRITICAL
+        if (rule.risk_level === 'HIGH' || rule.risk_level === 'CRITICAL') {
+          await this.alertCompliance(alert);
+        }
+      }
+    }
+
+    return alerts;
+  }
+
+  /**
+   * Check if transaction violates AML rule
+   */
+  private async checkRule(
+    transaction: Transaction,
+    rule: AMLRule
+  ): Promise<any | null> {
+    switch (rule.rule_id) {
+      case 'AML-001':  // Large cash transaction
+        if (transaction.amount >= rule.threshold.amount) {
+          return { amount: transaction.amount };
+        }
+        break;
+
+      case 'AML-002':  // Cumulative daily threshold
+        const dailyTotal = await this.getDailyTransactionTotal(
+          transaction.user_id,
+          transaction.created_at
+        );
+        if (dailyTotal >= rule.threshold.daily_amount) {
+          return { daily_total: dailyTotal };
+        }
+        break;
+
+      case 'AML-003':  // Structuring detection
+        const structuring = await this.detectStructuring(
+          transaction.user_id,
+          transaction.created_at,
+          rule.threshold
+        );
+        if (structuring) {
+          return structuring;
+        }
+        break;
+
+      case 'AML-004':  // Rapid fund movement
+        const rapidMovement = await this.detectRapidMovement(
+          transaction.user_id,
+          transaction.created_at,
+          rule.threshold.time_window
+        );
+        if (rapidMovement) {
+          return rapidMovement;
+        }
+        break;
+
+      case 'AML-005':  // High-risk country
+        if (transaction.destination_country &&
+            rule.threshold.countries.includes(transaction.destination_country)) {
+          return { country: transaction.destination_country };
+        }
+        break;
+
+      case 'AML-006':  // Transaction velocity
+        const dailyCount = await this.getDailyTransactionCount(
+          transaction.user_id,
+          transaction.created_at
+        );
+        if (dailyCount >= rule.threshold.daily_count) {
+          return { daily_count: dailyCount };
+        }
+        break;
+
+      case 'AML-007':  // Round number
+        if (rule.threshold.round_amounts.includes(transaction.amount)) {
+          return { amount: transaction.amount };
+        }
+        break;
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect structuring (multiple transactions just below threshold)
+   */
+  private async detectStructuring(
+    userId: string,
+    date: Date,
+    threshold: any
+  ): Promise<any | null> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const transactions = await this.transactionRepository.find({
+      where: {
+        user_id: userId,
+        amount: Between(threshold.amount_range[0], threshold.amount_range[1]),
+        created_at: Between(startOfDay, endOfDay),
+        status: TransactionStatus.COMPLETED,
+      },
+    });
+
+    if (transactions.length >= threshold.count) {
+      return {
+        transaction_count: transactions.length,
+        total_amount: transactions.reduce((sum, t) => sum + t.amount, 0),
+        transaction_ids: transactions.map(t => t.id),
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect rapid fund movement (in and out within hours)
+   */
+  private async detectRapidMovement(
+    userId: string,
+    date: Date,
+    timeWindow: number
+  ): Promise<any | null> {
+    const windowStart = new Date(date.getTime() - timeWindow * 1000);
+    const windowEnd = date;
+
+    // Find recent deposit
+    const deposit = await this.transactionRepository.findOne({
+      where: {
+        user_id: userId,
+        type: TransactionType.DEPOSIT,
+        created_at: Between(windowStart, windowEnd),
+        status: TransactionStatus.COMPLETED,
+      },
+      order: { created_at: 'DESC' },
+    });
+
+    if (!deposit) return null;
+
+    // Check for withdrawal within time window
+    const withdrawal = await this.transactionRepository.findOne({
+      where: {
+        user_id: userId,
+        type: TransactionType.WITHDRAWAL,
+        created_at: Between(deposit.created_at, windowEnd),
+        status: TransactionStatus.COMPLETED,
+      },
+    });
+
+    if (withdrawal) {
+      const timeDiff = (withdrawal.created_at.getTime() - deposit.created_at.getTime()) / 1000;
+      return {
+        deposit_id: deposit.id,
+        withdrawal_id: withdrawal.id,
+        time_difference_seconds: timeDiff,
+        deposit_amount: deposit.amount,
+        withdrawal_amount: withdrawal.amount,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Create AML alert
+   */
+  private async createAlert(
+    transaction: Transaction,
+    rule: AMLRule,
+    violation: any
+  ): Promise<AMLAlert> {
+    const alert: AMLAlert = {
+      alert_id: `AML-${Date.now()}-${uuidv4().substring(0, 8)}`,
+      user_id: transaction.user_id,
+      transaction_id: transaction.id,
+      rule_id: rule.rule_id,
+      rule_name: rule.rule_name,
+      risk_level: rule.risk_level,
+      description: rule.description,
+      details: violation,
+      status: 'OPEN',
+      created_at: new Date(),
+    };
+
+    await this.alertRepository.save(alert);
+    return alert;
+  }
+
+  /**
+   * Generate Suspicious Activity Report (SAR)
+   */
+  async generateSAR(
+    userId: string,
+    alertIds: string[],
+    suspicionReason: string,
+    filedBy: string
+  ): Promise<SuspiciousActivityReport> {
+    const user = await this.getUserDetails(userId);
+    const alerts = await this.alertRepository.findByIds(alertIds);
+
+    // Collect all related transactions
+    const transactionIds = alerts
+      .filter(a => a.transaction_id)
+      .map(a => a.transaction_id);
+
+    const transactions = await this.transactionRepository.findByIds(transactionIds);
+
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    const sar: SuspiciousActivityReport = {
+      sar_id: `SAR-${Date.now()}`,
+      user_id: userId,
+      alert_ids: alertIds,
+      subject: {
+        name: user.full_name,
+        dob: user.date_of_birth,
+        address: user.address,
+        phone: user.phone,
+        email: user.email,
+        account_number: user.account_number,
+      },
+      activity: {
+        type: this.classifySuspiciousActivity(alerts),
+        description: suspicionReason,
+        start_date: transactions[0]?.created_at,
+        end_date: transactions[transactions.length - 1]?.created_at,
+        total_amount: totalAmount,
+        transaction_count: transactions.length,
+        transactions: transactionIds,
+      },
+      suspicion_reason: suspicionReason,
+      filed_by: filedBy,
+      filed_date: new Date(),
+      status: 'DRAFT',
+    };
+
+    await this.sarRepository.save(sar);
+
+    // Mark alerts as SAR filed
+    for (const alert of alerts) {
+      alert.status = 'SAR_FILED';
+      await this.alertRepository.save(alert);
+    }
+
+    return sar;
+  }
+
+  /**
+   * File SAR with NFIU (Nigerian Financial Intelligence Unit)
+   */
+  async fileSARWithNFIU(sarId: string): Promise<void> {
+    const sar = await this.sarRepository.findOne({ where: { sar_id: sarId } });
+
+    // TODO: Integrate with NFIU portal API
+    // For now, generate PDF and email
+
+    const nfiuReference = `NFIU-${Date.now()}`;
+    sar.nfiu_reference = nfiuReference;
+    sar.status = 'FILED';
+    await this.sarRepository.save(sar);
+  }
+
+  /**
+   * Classify suspicious activity type
+   */
+  private classifySuspiciousActivity(alerts: AMLAlert[]): string {
+    const ruleIds = alerts.map(a => a.rule_id);
+
+    if (ruleIds.includes('AML-003')) return 'Structuring';
+    if (ruleIds.includes('AML-004')) return 'Layering';
+    if (ruleIds.includes('AML-005')) return 'High-Risk Jurisdiction';
+    if (ruleIds.includes('AML-006')) return 'Unusual Transaction Pattern';
+
+    return 'Suspicious Activity';
+  }
+}
+```
+
+**Database Schema:**
+
+```sql
+-- AML alerts
+CREATE TABLE aml_alerts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  alert_id VARCHAR(100) UNIQUE NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id),
+  transaction_id UUID REFERENCES transactions(id),
+
+  -- Rule details
+  rule_id VARCHAR(20) NOT NULL,
+  rule_name VARCHAR(255) NOT NULL,
+  risk_level VARCHAR(20) NOT NULL,      -- LOW, MEDIUM, HIGH, CRITICAL
+  description TEXT NOT NULL,
+  details JSONB,
+
+  -- Status
+  status VARCHAR(20) NOT NULL,          -- OPEN, INVESTIGATING, CLOSED, ESCALATED, SAR_FILED
+  assigned_to VARCHAR(100),
+
+  -- Resolution
+  closed_at TIMESTAMP,
+  closure_reason TEXT,
+
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+
+  -- Indexes
+  INDEX idx_aml_alerts_user_id (user_id),
+  INDEX idx_aml_alerts_status (status),
+  INDEX idx_aml_alerts_risk_level (risk_level),
+  INDEX idx_aml_alerts_created_at (created_at)
+);
+
+-- Suspicious Activity Reports (SARs)
+CREATE TABLE sars (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sar_id VARCHAR(100) UNIQUE NOT NULL,
+  user_id UUID NOT NULL REFERENCES users(id),
+  alert_ids JSONB NOT NULL,              -- Array of alert IDs
+
+  -- Subject information
+  subject JSONB NOT NULL,
+
+  -- Activity details
+  activity JSONB NOT NULL,
+  suspicion_reason TEXT NOT NULL,
+
+  -- Filing
+  filed_by VARCHAR(100) NOT NULL,
+  filed_date TIMESTAMP NOT NULL,
+  nfiu_reference VARCHAR(100),
+
+  -- Status
+  status VARCHAR(20) NOT NULL,          -- DRAFT, FILED, ACKNOWLEDGED
+
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+
+  -- Indexes
+  INDEX idx_sars_user_id (user_id),
+  INDEX idx_sars_status (status),
+  INDEX idx_sars_filed_date (filed_date)
+);
+```
+
+---
+
+#### Testing Requirements
+
+**Unit Tests (18 tests):**
+- Large cash transaction rule (> ₦5M)
+- Cumulative daily threshold (> ₦10M)
+- Structuring detection (3+ transactions 4-4.99M)
+- Rapid fund movement (2-hour window)
+- High-risk country detection
+- Transaction velocity (100+ per day)
+- Round number detection
+- AML alert creation
+- Risk level classification
+- SAR generation
+- SAR NFIU filing
+- Alert status transitions
+- Daily transaction total calculation
+- Daily transaction count
+- Suspicious activity classification
+- Alert assignment workflow
+- Alert closure
+- Historical alert retrieval
+
+**Integration Tests (8 tests):**
+- Full AML monitoring workflow
+- Generate SAR from multiple alerts
+- File SAR with NFIU
+- Compliance dashboard with real data
+- Alert investigation workflow
+- Monthly AML report generation
+- Historical SAR retrieval
+- Concurrent alert processing
+
+**E2E Tests (5 tests):**
+- Large transaction → alert → investigation → closed
+- Structuring pattern → alert → SAR generation → NFIU filing
+- Rapid movement → alert → escalation
+- Compliance officer reviews alerts
+- Monthly AML report export
+
+---
+
+#### Definition of Done
+
+- [ ] All acceptance criteria met
+- [ ] All 7 AML rules implemented
+- [ ] Structuring detection working
+- [ ] SAR generation and filing tested
+- [ ] All tests passing (31+ tests)
+- [ ] Compliance dashboard complete
+- [ ] NFIU filing process validated
+- [ ] Code reviewed and merged
+
+---
+
+## Sprint Summary
+
+### Sprint Backlog Table
+
+| Story ID | Story Name | Story Points | Priority | Status | Assignee |
+|----------|-----------|--------------|----------|--------|----------|
+| US-30.1.1 | CBN Monthly Regulatory Reporting | 8 | P0 | 🔄 Not Started | Solo Dev |
+| US-30.1.2 | Tax Calculation & Withholding | 8 | P0 | 🔄 Not Started | Solo Dev |
+| US-30.1.3 | Sanctions Screening Integration | 7 | P0 | 🔄 Not Started | Solo Dev |
+| US-30.1.4 | AML Transaction Monitoring & SAR | 7 | P0 | 🔄 Not Started | Solo Dev |
+| **TOTAL** | **4 User Stories** | **30** | - | - | - |
+
+---
+
+### Overall Testing Requirements
+
+**Total Tests:** 82+ tests (35 + 31 + 28 + 31 = 125 tests)
+
+**Coverage Target:** 90%+
+
+**Test Categories:**
+- Unit Tests: 71 tests
+- Integration Tests: 34 tests
+- E2E Tests: 20 tests
+
+**Critical Test Scenarios:**
+- CBN report generation with 1M+ transactions
+- Tax calculation accuracy (verified by accountant)
+- Sanctions screening (zero false negatives)
+- AML structuring detection
+- SAR generation and NFIU filing
+
+---
+
+### Risk Register
+
+| Risk ID | Risk Description | Probability | Impact | Mitigation Strategy | Owner |
+|---------|-----------------|-------------|--------|---------------------|-------|
+| R-30.1 | CBN report format changes | Medium | High | Monitor CBN circulars, version control report templates | Compliance Officer |
+| R-30.2 | Tax rate changes (VAT/WHT) | Medium | High | Configurable tax rates, quick deployment process | Finance Manager |
+| R-30.3 | Sanctions list API downtime | Low | Critical | Cache lists locally, update daily, fallback to manual | Tech Lead |
+| R-30.4 | False positive sanctions matches | High | Medium | Fuzzy matching threshold tuning, manual review workflow | Compliance Officer |
+| R-30.5 | NFIU portal integration unavailable | Medium | High | PDF/email submission as backup, manual filing process | Compliance Officer |
+| R-30.6 | Large transaction volume affects performance | Medium | High | Database indexing, query optimization, caching | Tech Lead |
+| R-30.7 | AML rule changes (EFCC regulations) | Low | High | Configurable rules engine, regular compliance training | Compliance Officer |
+| R-30.8 | Missed suspicious activities (false negatives) | Low | Critical | Multiple overlapping rules, regular rule effectiveness review | Compliance Officer |
+| R-30.9 | Data retention requirements (7 years) | Low | Medium | Archive old data to cold storage, backup verification | Tech Lead |
+| R-30.10 | Compliance officer availability | Medium | High | Cross-train staff, documented procedures, automated alerts | Admin |
+
+---
+
+### Dependencies
+
+**External Dependencies:**
+- CBN report format specification (latest circular)
+- FIRS tax filing portal access
+- OFAC sanctions list API access (https://www.treasury.gov/ofac/)
+- UN sanctions list API access (https://www.un.org/securitycouncil/)
+- EU sanctions list API access (https://ec.europa.eu/)
+- NFIU portal integration (for SAR filing)
+
+**Internal Dependencies:**
+- Sprint 1-5: User and transaction data available
+- Sprint 19: KYC tier management complete
+- Transaction service must track channel (web, mobile, API)
+- User service must store nationality, DOB, passport
+
+**Service Dependencies:**
+- PostgreSQL database with transaction history
+- Redis cache for sanctions lists
+- Excel export library (ExcelJS)
+- Email service for compliance alerts
+- Cron job scheduler for daily tasks
+
+---
+
+### Notes & Decisions
+
+**Technical Decisions:**
+1. **CBN Report Format:** Using ExcelJS for Excel generation (CBN prefers Excel over PDF)
+2. **Sanctions Screening:** Levenshtein distance algorithm for fuzzy matching (threshold: 75+)
+3. **Tax Calculation:** Real-time calculation during transaction, stored in separate table
+4. **AML Rules:** 7 initial rules, designed for easy addition of new rules
+5. **SAR Filing:** Manual filing initially, NFIU API integration in future sprint
+
+**Business Decisions:**
+1. **Compliance Officer Role:** Dedicated role required before production launch
+2. **Tax Verification:** CPA/accountant to verify tax calculations before go-live
+3. **Sanctions List Update:** Daily at 2 AM (off-peak hours)
+4. **AML Alert Thresholds:** Based on CBN/EFCC guidelines, may need tuning
+5. **Data Retention:** 7 years for all compliance records (regulatory requirement)
+
+**Cost Estimates:**
+- Sanctions list data feeds: $0-2,000/year (OFAC/UN free, commercial feeds optional)
+- Compliance officer salary: $36K-60K/year
+- CPA tax verification: $2K-5K one-time
+- NFIU integration: TBD (pending CBN requirements)
+
+**Success Metrics:**
+- 100% on-time CBN report submission (by 5th of month)
+- 100% accurate tax calculations (zero FIRS audit findings)
+- < 5% sanctions screening false positive rate
+- Zero missed suspicious activities (regulatory audits)
+- < 24 hours SAR filing time (from alert to NFIU)
+
+---
+
+## Sprint Retrospective Preparation
+
+**What to Review:**
+- CBN report accuracy (validate with sample data)
+- Tax calculation verified by accountant
+- Sanctions screening performance (< 2 seconds)
+- AML rule effectiveness (true positive vs. false positive rate)
+- Compliance officer workflow efficiency
+- Documentation completeness
+
+**Potential Improvements:**
+- Machine learning for AML pattern detection (future enhancement)
+- Real-time CBN submission API (if/when available)
+- Advanced sanctions screening (photos, addresses)
+- Customer risk scoring model
+- Automated compliance reporting dashboard
+
+---
+
+**End of Sprint 30 Backlog**
