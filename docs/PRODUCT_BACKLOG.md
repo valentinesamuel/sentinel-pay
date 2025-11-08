@@ -53,10 +53,10 @@
 | EPIC-14 | Notifications | Medium - User engagement | 60 | P2 | Not Started |
 | EPIC-15 | Reporting & Analytics | Medium - Business intelligence | 80 | P2 | Not Started |
 | EPIC-16 | Webhooks & Integration | Medium - Developer experience | 50 | P2 | Not Started |
-| EPIC-17 | Mock Provider Service | Critical - Development enablement | 140 | P0 | Not Started |
+| EPIC-17 | Mock Provider Service | Critical - Development enablement | 140 | P0 | In Progress |
 
-**Total Estimated Story Points:** ~1,600
-**Estimated Duration:** 20 sprints (40 weeks / 10 months)
+**Total Estimated Story Points:** ~1,648 (includes Sprint 6A: +48 SP)
+**Estimated Duration:** 21 sprints (42 weeks / 10.5 months)
 
 ---
 
@@ -116,19 +116,43 @@
 
 ---
 
-### Sprint 6: Mock Provider Service - Part 1
-**Goal:** Build mock NIBSS, NIP, and card network APIs
+### Sprint 6: Withdrawals & Bill Payments
+**Goal:** Implement wallet withdrawal to bank accounts, bill payment services, and KYC verification workflows
 **Story Points:** 45
 **Duration:** Week 13-14
-**Epics:** EPIC-17
+**Epics:** EPIC-5, EPIC-6, EPIC-7
 
 ---
 
-### Sprint 7: Mock Provider Service - Part 2
-**Goal:** Build mock Paystack, Flutterwave, and settlement generators
+### Sprint 6A: Mock Card Issuance Service Foundation (NEW)
+**Goal:** Build production-grade mock card issuance service with complete transaction simulation
+**Story Points:** 48
+**Duration:** Week 13A-14A (2 weeks) - Inserted Sprint
+**Epics:** EPIC-17
+
+**Features:**
+- Virtual card issuance with Luhn-valid card numbers
+- Card lifecycle management (freeze, unfreeze, terminate, limits)
+- Transaction authorization simulation with realistic decline scenarios
+- Transaction settlement and batch processing
+- Spending limit enforcement (daily, monthly, per-transaction)
+- Test card numbers for all scenarios
+- Provider swap interface for future Stripe/Sudo/Paystack integration
+
+**Rationale:**
+This sprint was added to provide a comprehensive mock card issuance service that:
+- Saves $18,000-60,000 in provider fees during 12-month development
+- Enables full card feature testing without external dependencies
+- Provides a clean abstraction layer for future provider swaps
+- Blocks Sprint 10 (Virtual Cards) - must be completed first
+
+---
+
+### Sprint 7: Notifications, Webhooks & Fraud Detection
+**Goal:** Implement comprehensive notification system, webhook management for merchants, and fraud detection mechanisms
 **Story Points:** 42
 **Duration:** Week 15-16
-**Epics:** EPIC-17
+**Epics:** EPIC-8, EPIC-9, EPIC-10
 
 ---
 

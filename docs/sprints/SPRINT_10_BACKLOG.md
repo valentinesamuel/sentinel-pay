@@ -17,12 +17,15 @@ By the end of Sprint 10, we will have:
 2. Invoice generation and payment links
 3. Recurring payment subscriptions with auto-charging
 4. Subscription management (pause, cancel, upgrade)
-5. Virtual debit cards for online payments
+5. Virtual debit cards for online payments (using Sprint 6A mock card service)
 6. Card controls (spending limits, merchant blocking)
 7. Transaction velocity controls and spending limits
 8. AML (Anti-Money Laundering) screening integration
 9. Suspicious activity monitoring and reporting
 10. Compliance reporting for regulatory requirements
+
+**⚠️ IMPORTANT DEPENDENCY:**
+This sprint depends on **Sprint 6A: Mock Card Issuance Service Foundation**, which must be completed first. Sprint 6A provides the mock card issuance infrastructure that Sprint 10 will consume for virtual card features.
 
 **Definition of Done (Sprint Level):**
 - [ ] All user stories marked as done
