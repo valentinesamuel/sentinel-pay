@@ -1,53 +1,102 @@
 # Sprint 19 Backlog - KYC & Compliance
 
-**Sprint:** Sprint 19 | **Duration:** Week 39-40 | **Story Points:** 40 SP
+**Sprint:** Sprint 19
+**Duration:** 2 weeks (Week 39-40)
+**Sprint Goal:** Implement comprehensive KYC verification, tier management, compliance monitoring, and regulatory reporting
+**Story Points Committed:** 40
+**Team Capacity:** 40 SP
 
-## Sprint Goal
-Implement comprehensive KYC verification, tier management, compliance monitoring, and regulatory reporting.
+---
 
-## User Stories
+## FEATURE-19.1: KYC Verification System
 
-### US-19.1.1 - KYC Verification System (18 SP)
-**As a user, I want to complete KYC verification to unlock higher limits**
+### 📘 User Story: US-19.1.1 - KYC Verification System (18 SP)
 
-**Tiers:**
-- **Tier 1 (Basic):** Email + Phone verification
-  - Limits: NGN 50,000/day
-- **Tier 2 (Intermediate):** + BVN + ID
-  - Limits: NGN 500,000/day
-- **Tier 3 (Advanced):** + Address proof + Selfie
-  - Limits: NGN 5,000,000/day
+**As a user, I want to complete KYC verification to unlock higher transaction limits**
 
-**Acceptance Criteria:**
-- Multi-tier KYC system
-- Document upload and verification
-- BVN integration
-- ID verification (NIN, Driver's License, Passport)
-- Liveness detection for selfies
-- Auto-approval for low-risk cases
-- Manual review queue
+#### Acceptance Criteria
 
-### US-19.2.1 - Compliance Monitoring (12 SP)
-**As a compliance officer, I want to monitor suspicious activities**
+**Tier 1 (Basic) - Email + Phone:**
+- [ ] **AC1:** Limits: ₦50,000/day, ₦500,000/month
+- [ ] **AC2:** Email verification with OTP
+- [ ] **AC3:** Phone verification with SMS OTP
+- [ ] **AC4:** Auto-approval in <1 second
+- [ ] **AC5:** Duration: permanent (no expiry)
 
-**Features:**
-- AML transaction monitoring
-- Suspicious activity detection
-- PEP (Politically Exposed Person) screening
-- Sanctions list checking
-- CTR (Currency Transaction Report) generation
-- SAR (Suspicious Activity Report) filing
+**Tier 2 (Intermediate) - BVN + ID:**
+- [ ] **AC6:** Limits: ₦500,000/day, ₦5,000,000/month
+- [ ] **AC7:** BVN verification with CBN API
+- [ ] **AC8:** ID verification (NIN, Driver's License, Passport)
+- [ ] **AC9:** Approval within 24 hours (95% auto-approval)
+- [ ] **AC10:** Validity: 5 years (or document expiry)
 
-### US-19.3.1 - Regulatory Reporting (10 SP)
-**As a compliance officer, I want automated regulatory reports**
+**Tier 3 (Advanced) - Full KYC:**
+- [ ] **AC11:** Limits: ₦5,000,000/day, ₦50,000,000/month
+- [ ] **AC12:** Address proof (utility bill, bank statement)
+- [ ] **AC13:** Liveness detection (selfie with document)
+- [ ] **AC14:** Liveness score required: >90%
+- [ ] **AC15:** Manual review for high-risk cases (5-10%)
 
-**Reports:**
-- Daily transaction reports
-- Monthly compliance summary
-- KYC statistics
-- Large transaction reports
-- Cross-border transaction reports
-- Audit trails
+**Document Management:**
+- [ ] **AC16:** Upload multiple document types
+- [ ] **AC17:** Document validation (size, format, quality)
+- [ ] **AC18:** OCR-based data extraction
+- [ ] **AC19:** Document expiry tracking
+- [ ] **AC20:** Secure storage with encryption
+
+**Verification Workflow:**
+- [ ] **AC21:** Status: pending, verified, rejected, expired
+- [ ] **AC22:** Automated low-risk approval
+- [ ] **AC23:** Manual review queue for ambiguous cases
+- [ ] **AC24:** Resubmission workflow
+- [ ] **AC25:** Appeal process for rejections
+
+### 📘 User Story: US-19.2.1 - Compliance Monitoring (12 SP)
+
+**As a compliance officer, I want to monitor suspicious activities and ensure regulatory compliance**
+
+#### Acceptance Criteria
+
+**AML Monitoring:**
+- [ ] **AC1:** Flag transactions >₦5,000,000
+- [ ] **AC2:** Detect structured transactions (layering)
+- [ ] **AC3:** Monitor for unusual patterns
+- [ ] **AC4:** Cross-user network analysis
+- [ ] **AC5:** Velocity monitoring (rapid transactions)
+
+**PEP & Sanctions Screening:**
+- [ ] **AC6:** Check users against PEP database
+- [ ] **AC7:** Sanctions list screening (UN, OFAC, EU)
+- [ ] **AC8:** Automatic block for sanctioned entities
+- [ ] **AC9:** Risk scoring for PEP matches
+- [ ] **AC10:** Escalation workflow
+
+**Alert Management:**
+- [ ] **AC11:** Auto-create alerts for suspicious activity
+- [ ] **AC12:** Alert severity levels: low, medium, high, critical
+- [ ] **AC13:** Assign alerts to compliance officers
+- [ ] **AC14:** Investigation workflow
+- [ ] **AC15:** Resolution tracking
+
+### 📘 User Story: US-19.3.1 - Regulatory Reporting (10 SP)
+
+**As a CFO, I want automated regulatory reports for audit compliance**
+
+#### Acceptance Criteria
+
+**Daily & Monthly Reports:**
+- [ ] **AC1:** Daily transaction summary report
+- [ ] **AC2:** Monthly compliance summary
+- [ ] **AC3:** KYC statistics (users by tier)
+- [ ] **AC4:** CTR (Currency Transaction Report) >₦15M
+- [ ] **AC5:** SAR (Suspicious Activity Report)
+
+**Regulatory Filings:**
+- [ ] **AC6:** Auto-generate CTR for FIRS
+- [ ] **AC7:** Auto-generate SAR for NPA (if needed)
+- [ ] **AC8:** Cross-border transaction reporting
+- [ ] **AC9:** Large transaction notifications
+- [ ] **AC10:** Audit trail for all compliance actions
 
 ## Technical Specifications
 

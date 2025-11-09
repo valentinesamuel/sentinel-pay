@@ -1,6 +1,9 @@
 # Sprint 20 Backlog - Notifications & Webhooks
 
-**Sprint:** Sprint 20 | **Duration:** Week 41-42 | **Story Points:** 35 SP
+**Sprint:** Sprint 20
+**Duration:** 2 weeks (Week 41-42)
+**Story Points Committed:** 35
+**Team Capacity:** 35 SP
 
 ## Sprint Goal
 Build comprehensive notification system with multi-channel delivery, webhook infrastructure, and event streaming.
