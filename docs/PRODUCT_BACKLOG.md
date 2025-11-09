@@ -762,6 +762,938 @@ Security hardening is CRITICAL before production launch. This sprint ensures:
 
 ---
 
+### Sprint 34: Payroll Management System (NEW)
+**Goal:** Automated salary disbursement and payroll processing for businesses
+**Story Points:** 30
+**Duration:** Week 68-69 (2 weeks)
+**Epics:** Business & Enterprise (New Epic Extension)
+
+**Features:**
+- **Employee Management Module:**
+  - Add/edit/remove employees from payroll
+  - Bank account details per employee (account number, bank code, account name)
+  - Salary structure definition (basic salary, allowances, deductions)
+  - Employment status tracking (active, suspended, terminated)
+  - Employee bulk upload (CSV/Excel with 50+ fields)
+  - Employee verification workflow (confirm bank details match CBN records)
+  - Department and cost center assignment
+
+- **Payroll Calculation Engine:**
+  - Automated salary calculation with formula builder
+  - Basic salary + allowances (housing, transport, lunch, performance bonus)
+  - Deductions (tax - PAYE, pension - 8% CPS, NHF - 2.5%, health insurance - 5%)
+  - Overtime calculation (1.5x rate for hours >40/week)
+  - Leave deduction (unpaid leave, sick leave usage)
+  - Loan deductions (track loan repayments)
+  - Tax filing integration (generate PAYE reports for FIRS)
+  - Gross to net salary calculation
+  - Salary advance management (cap at 50% of monthly salary)
+
+- **Payroll Schedule & Approval Workflow:**
+  - Set payroll frequency (monthly, bi-weekly, weekly, custom dates)
+  - Payroll period configuration (e.g., 25th of each month)
+  - Schedule multi-month payroll runs in advance
+  - HR submits payroll for approval
+  - Manager reviews and approves (dual approval for >₦5M)
+  - Finance approves fund allocation
+  - System calculates exact settlement amounts per employee
+  - Change request tracking (add/remove employees, salary adjustments mid-payroll)
+
+- **Bulk Salary Disbursement (Batch Payments Integration):**
+  - Auto-create batch payment from approved payroll
+  - One-click settlement to all employee accounts
+  - Fallback to manual transfers for problematic accounts
+  - Reconciliation against batch payment status
+  - Handle failed transfers (retry, manual intervention, reversal workflow)
+  - Settlement confirmation per employee (email payslip + payment confirmation)
+  - Multi-currency support (for expat employees: USD, GBP to NGN conversion)
+
+- **Payslip Generation & Distribution:**
+  - Auto-generate professional payslips (PDF format)
+  - Payslip content: gross salary, deductions, net pay, leave balance, loan balance
+  - Digital payslip repository (employee self-service portal)
+  - Email payslips securely (encrypted link, OTP verification)
+  - SMS notification of salary deposit
+  - Payslip templates with company branding
+  - Payslip history (searchable by date range)
+  - Print-friendly format
+
+- **Payroll Reporting & Compliance:**
+  - Monthly payroll summary report (total payroll, deductions breakdown)
+  - Employee payroll register (all employees, salaries, deductions)
+  - Bank settlement report (matches batch payment reconciliation)
+  - PAYE tax report for FIRS filing (form)
+  - Pension contribution report for PENCOM
+  - NHF contribution report for housing authority
+  - Health insurance reconciliation report
+  - Departmental payroll breakdown (costs by department)
+  - Year-to-date payroll summary per employee (for loan/mortgage applications)
+  - Export payroll data to Excel (for accounting integration)
+
+- **Integration with HR Systems:**
+  - API integration with BambooHR (sync employee data)
+  - API integration with Workday (future)
+  - Auto-fetch leave requests from HR system
+  - Auto-sync employee master data changes
+  - Webhook notifications for employee changes
+
+- **Self-Service Portal for Employees:**
+  - View own payslip (current and historical)
+  - Download payslip as PDF
+  - Verify salary details
+  - View tax information
+  - Request salary certificate (for loans, visa applications)
+  - Update bank account details (employee-initiated changes, manager approval)
+  - View leave balance and usage
+
+- **Payroll Analytics & Insights:**
+  - Payroll cost trend (monthly comparison, YoY growth)
+  - Salary distribution analysis (median, mean, by department)
+  - Deduction breakdown (tax, pension, insurance)
+  - Overtime cost analysis (by employee, department, month)
+  - Turnover cost tracking (salary benefits for separated employees)
+  - Budget vs. actual payroll (company budgeted vs. actual spend)
+  - Payroll efficiency metrics (cost per employee, payroll processing time)
+
+**Technical Implementation:**
+- NestJS services: PayrollCalculationService, PayslipGenerationService, PayrollApprovalService, PayrollReportingService
+- PostgreSQL tables: employees, salary_structures, payroll_runs, payslip_items, deductions, allowances, payroll_approvals
+- ExcelJS for payroll file uploads and report generation
+- PDF generator (PDFKit) for payslip generation
+- Batch payments API (Sprint 27 integration)
+- HR system adapters (BambooHR API client)
+- 156 acceptance criteria, 152+ tests (85 unit, 47 integration, 20 E2E)
+
+**Database Schema:**
+- employees (id, company_id, employee_id, first_name, last_name, email, phone, bank_code, account_number, department, status, hire_date)
+- salary_structures (id, employee_id, basic_salary, house_allowance, transport_allowance, lunch_allowance, start_date, end_date)
+- payroll_runs (id, company_id, payroll_period, status, total_amount, processed_at, approval_chain)
+- payslip_items (id, payroll_run_id, employee_id, gross_salary, allowances_total, deductions_total, net_salary)
+- deductions (id, payslip_id, deduction_type, amount, reference_id)
+- payroll_approvals (id, payroll_run_id, approver_id, approval_status, approval_date, comments)
+
+**Performance Benchmarks:**
+- Payroll calculation: 1000 employees in < 5 seconds
+- Payslip generation: 1000 PDFs in < 15 seconds
+- Batch settlement: Initiate 1000 payments in < 30 seconds
+- Payroll approval workflow: < 3 seconds per action
+
+**Compliance & Features:**
+- FIRS PAYE tax compliance (withholding tax forms)
+- PENCOM pension contribution reporting
+- NHF statutory deduction
+- Privacy & security (payroll data highly confidential, encryption at rest/transit)
+- Audit trail (all changes to payroll tracked)
+- Change control (approval required for payroll modifications)
+
+**Cost:** $0 (internal build) vs. $200-500/month (Bamboo HR, ADP, Workday)
+**Business Impact:**
+- Reduce payroll processing time: 8 hours/month → 15 minutes (HR efficiency gain)
+- Payroll errors reduced by 95% (automated calculation vs. manual spreadsheets)
+- Employee satisfaction: 4.2 → 4.8/5.0 (timely, transparent salaries)
+- B2B revenue: ₦2,000-5,000 per employee/month
+- Target market: 100+ employee companies (mid-market Nigeria)
+- Break-even: 50 companies × 100 employees × ₦2,500 = ₦12.5M MRR
+- Payback period: ~3 months
+
+---
+
+### Sprint 35: Referral & Rewards Program (NEW)
+**Goal:** Incentivize user acquisition through viral referral mechanics and gamified rewards
+**Story Points:** 28
+**Duration:** Week 70-71 (2 weeks)
+**Epics:** Customer Experience & Growth
+
+**Features:**
+- **Referral Code Generation & Tracking:**
+  - Auto-generate unique referral code per user (alphanumeric, URL-safe)
+  - Custom referral codes (vanity codes: @john, @smithjohnson with uniqueness check)
+  - Dynamic referral links (ubiquitous-tribble.app?ref=xyz123)
+  - Short link generation (bit.ly style: ref.ubiquitous-tribble.com/abc123)
+  - QR code generation for referral link
+  - Referral link analytics (clicks, scans, conversions per link)
+  - Bulk referral code generation for business partners
+
+- **Referral Tracking & Attribution:**
+  - Track referrer from signup → KYC completion → first transaction
+  - Attribution window (30 days from signup to complete referral)
+  - Multi-level referral detection (detect if referee also referred others)
+  - Referral source tracking (direct link, QR code, social share)
+  - Device/IP validation to prevent duplicate signups
+  - Referral status dashboard per user (pending, claimed, expired)
+
+- **Rewards Structure & Tiers:**
+  - Base reward: ₦500 to referrer + ₦500 to referee on first transaction
+  - Tiered rewards:
+    * Tier 1 (1-5 referrals): ₦500 per referral
+    * Tier 2 (6-20 referrals): ₦700 per referral
+    * Tier 3 (21-50 referrals): ₦1,000 per referral
+    * Tier 4 (51+ referrals): ₦1,500 per referral
+  - Custom reward amounts per referral (by referrer segment)
+  - Reward milestone bonuses (₦5K on 10th referral, ₦10K on 25th referral)
+  - Seasonal rewards (2x rewards during promotions)
+  - Conditional rewards:
+    * Bonus if referee reaches KYC Tier 2 (₦1,000 additional)
+    * Bonus if referee's first transaction > ₦10K (₦500 additional)
+  - Reward expiry (rewards must be claimed within 90 days)
+
+- **Referral Leaderboard & Gamification:**
+  - Weekly leaderboard (top 10 referrers by count)
+  - Monthly leaderboard with rewards (1st: ₦50K, 2nd: ₦30K, 3rd: ₦15K)
+  - Lifetime referral count per user
+  - Referral milestones (10 referrals: Silver badge, 25: Gold, 50: Platinum)
+  - Rank display (Rookie, Partner, Ambassador, Champion)
+  - Social sharing of leaderboard position
+  - Seasonal competitions (Jan-Mar: New Year New Friends, Dec: Year-End Rewards)
+  - Team competitions (invite your team, compete as group)
+
+- **Promotional Campaigns & Segments:**
+  - Create referral campaigns (name, reward amount, duration, target users)
+  - Campaign builder UI (drag-and-drop, rules engine)
+  - Target by user segment (KYC tier, transaction volume, registration date)
+  - Time-limited promotions (Black Friday, Cyber Monday, Eid specials)
+  - Geographic targeting (campaigns per state/region)
+  - Social media integration (LinkedIn, Twitter, WhatsApp campaign templates)
+  - Email templates for referral invitations (customizable)
+  - Social share buttons with auto-generated messages
+
+- **Reward Distribution & Management:**
+  - Automatic wallet credit on referral completion (within 24 hours)
+  - Reward redemption options:
+    * Wallet credit (instant)
+    * Bank transfer (next business day)
+    * Airtime credit (instant)
+    * Mobile money (instant)
+  - Minimum redemption threshold (₦1,000 minimum)
+  - Pending rewards dashboard (track unclaimed, claimed, credited)
+  - Reward history (detailed log of all referrals and rewards)
+  - Batch reward processing (daily job to calculate and credit rewards)
+  - Fraud detection (prevent reward abuse, duplicate accounts)
+
+- **Fraud Prevention & Anti-Gaming:**
+  - Device fingerprinting to detect multiple accounts per user
+  - IP address blocking (prevent signup from same IP)
+  - Phone number validation (one account per phone)
+  - Email verification (one account per email)
+  - Velocity checks (block excessive referrals from same account)
+  - Manual review for suspicious patterns (flagged for compliance review)
+  - Referral code transfer restrictions (referral codes non-transferable)
+  - KYC verification required to claim rewards (₦5K+)
+
+- **Referral Program Analytics & Reporting:**
+  - Program overview dashboard (total referrals, referrer count, rewards paid)
+  - Referral conversion funnel (signups → KYC → first transaction)
+  - Cost per acquisition (CPA) tracking (total rewards / successful referrals)
+  - Referral quality metrics (% of referrals that complete KYC, % active)
+  - Cohort analysis (referrals by source, by referrer segment)
+  - Churn analysis (do referrals have higher/lower churn?)
+  - Revenue impact (track LTV of referred users vs. organic)
+  - Anomaly detection (unusual patterns in referral data)
+  - Export reports (CSV/PDF for marketing team)
+
+- **User Interface & Experience:**
+  - Referral dashboard (one-click access, clean design)
+  - Share buttons (WhatsApp, SMS, Twitter, LinkedIn, Email, Copy link)
+  - Social proof (show live referral notifications: "John referred Sarah! 🎉")
+  - Referral progress widget (visual progress to next milestone)
+  - Email notifications (referral claimed, reward earned, milestone unlocked)
+  - In-app notifications (real-time referral activity)
+  - Mobile-optimized sharing (deep links for iOS/Android)
+  - Referral tutorial/onboarding
+
+- **Integration with Other Features:**
+  - Integration with wallet system (reward crediting)
+  - Integration with KYC system (verification requirement)
+  - Integration with transaction system (first transaction detection)
+  - Integration with notification system (email/SMS/push)
+  - Integration with analytics (track referral metrics)
+
+**Technical Implementation:**
+- NestJS services: ReferralService, RewardsService, LeaderboardService, FraudDetectionService, AnalyticsService
+- PostgreSQL tables: referral_codes, referrals, rewards, leaderboard_snapshots, referral_campaigns, referral_analytics
+- Redis for leaderboard caching (real-time updates)
+- Cron jobs for daily reward processing and leaderboard refresh
+- Device fingerprinting library (TruValidate or similar)
+- URL shortener service (internal or 3rd party)
+- 143 acceptance criteria, 140+ tests (78 unit, 44 integration, 18 E2E)
+
+**Database Schema:**
+- referral_codes (id, user_id, code, custom_code, referral_link, qr_code_url, created_at, status)
+- referrals (id, referrer_id, referee_id, referral_code, signup_date, kyc_completion_date, first_transaction_date, status)
+- rewards (id, referral_id, reward_amount, reward_type, status, claimed_date, credited_date)
+- leaderboard_snapshots (id, period, referrer_id, referral_count, reward_amount, rank)
+- referral_campaigns (id, campaign_name, reward_amount, start_date, end_date, target_segment)
+
+**Performance Benchmarks:**
+- Referral code generation: < 100ms
+- Leaderboard calculation (10K users): < 2 seconds (cached)
+- Reward distribution job (10K pending): < 30 seconds
+- Referral tracking: < 50ms per signup
+
+**Compliance & Security:**
+- No rewards for KYC Tier 1 only (Tier 2+ for payouts)
+- Rewards capped at CBN limits for promotional activities
+- Fraud detection and suspicious pattern flagging
+- Audit trail of all reward transactions
+
+**Cost:** ₦1.5M-2.5M per month (referral rewards for 100K users at ₦500-1000 avg)
+**Business Impact:**
+- Viral coefficient target: 1.3 (each referrer brings 1.3 new users)
+- CAC reduction: 60% (internal referrals cheaper than paid ads)
+- User acquisition: 10K-15K new users/month via referrals
+- Revenue increase: 20-30% growth in active users
+- Payback period: 1 month (referral rewards vs. paid ad costs)
+
+---
+
+### Sprint 36: Social Payments - Split Bills & Collections (NEW)
+**Goal:** Enable peer-to-peer payment splitting and group collections for social transactions
+**Story Points:** 32
+**Duration:** Week 72-73 (2 weeks)
+**Epics:** Customer Experience & Social Features
+
+**Features:**
+- **Bill Splitting Engine:**
+  - Create split payment (enter total amount, select participants)
+  - Equal split (₦1,000 ÷ 4 people = ₦250 each)
+  - Itemized split (add line items: food ₦600, drinks ₦200, service ₦200)
+  - Custom amounts (person A pays ₦500, person B pays ₦300, etc.)
+  - Percentage-based split (person A: 50%, person B: 30%, person C: 20%)
+  - Weighted split (based on consumption units or custom weights)
+  - Tax/tip handling (add tax 7.5%, add tip 15-20%, automatically split)
+  - Rounding optimization (prevent ₦0.01 discrepancies with rounding algorithm)
+  - Receipt attachment (photo of bill, OCR extraction for amounts)
+
+- **Group Collection Pools:**
+  - Create collection for group gift/event (e.g., "Sarah's Wedding Gift - ₦50,000 target")
+  - Set collection goal amount and deadline
+  - Add collection description and optional photo
+  - Invite participants (in-app, SMS, email, WhatsApp link)
+  - Track contribution status (who paid, who hasn't)
+  - Real-time contribution counter (visual progress bar)
+  - Multiple payment methods per participant (card, bank transfer, wallet)
+  - Partial payment support (contribute now, pay rest later)
+  - Collection owner can adjust goal if needed
+  - Automatic settlement when goal reached (optional) or on deadline
+
+- **Payment Request Distribution:**
+  - Send payment requests via multiple channels:
+    * WhatsApp (clickable payment link with message)
+    * SMS (short link + amount)
+    * Email (formatted request with payment button)
+    * In-app notification (for app users)
+    * QR code (shareable for in-person request)
+  - Auto-generated message templates (customizable)
+  - Bulk send to multiple participants (one-click)
+  - Message preview before sending
+  - Delivery confirmation (SMS sent, WhatsApp read receipts)
+  - Reminder automation (send reminder 24h before deadline, 1h before)
+  - Custom messaging (personalize per participant: "Hi @name, your share is ₦250")
+
+- **Payment Processing & Tracking:**
+  - Accept payments from both in-app users and non-users
+  - In-app payment (wallet-to-wallet, instant settlement)
+  - Card payment acceptance (redirect to card payment processor)
+  - Bank transfer detection (manual or automated via bank API)
+  - Mobile money acceptance (MTN, Airtel, M-Pesa)
+  - Manual payment confirmation (owner marks as paid if offline payment)
+  - Payment confirmation notifications (both payer and requester)
+  - Payment history per split (detailed log of all transactions)
+  - Receipt generation (shareable split breakdown)
+
+- **Settlement & Payouts:**
+  - Auto-settlement to collection creator or designated beneficiary
+  - Batch settlement (payout collected funds within 24h)
+  - Split settlement options:
+    * Pay organizer first (organizer gets full amount, then reimburses sharers)
+    * Proportional settlement (each person pays their exact share)
+    * Custom settlement (organizer defines settlement order)
+  - Settlement to bank account, wallet, or mobile money
+  - Settlement fee transparency (₦50 per settlement, no hidden costs)
+  - Instant settlement to wallet (₦0 fee)
+  - Delayed settlement option (hold funds for 7 days for fraud prevention)
+
+- **Group Management & Collaboration:**
+  - Create groups (friend groups, roommates, team)
+  - Add members to groups (one-time, repeating)
+  - Member roles (creator, contributor, observer)
+  - Shared transaction history per group
+  - Group dashboard (who owes whom, settlement tracking)
+  - Dispute resolution (flag payment as incorrect, comments)
+  - Member removal (end contributions from member)
+  - Group deactivation (archive old groups)
+  - Group usage analytics (total split, member participation rate)
+
+- **Expense Management & Analytics:**
+  - Track personal expenses across multiple splits
+  - Expense dashboard (all current and past splits)
+  - Settlement summary (how much you owe/are owed across all groups)
+  - Personal balance tracking (net owed/owed to you)
+  - Recurring splits (monthly split with same group, auto-create)
+  - Split history (sortable by date, amount, group)
+  - Export split data (CSV for accounting)
+  - Spending analytics (total spent on dining, events, etc.)
+
+- **Request-Response Model (Alternative Flow):**
+  - Send money request (request ₦1,000 from John for lunch)
+  - Money request notifications (in-app, SMS, email)
+  - Accept/decline/counter-offer flow
+  - Message back and forth before payment
+  - Auto-reminder (send reminder after 3 days, 7 days)
+  - Request timeout (auto-cancel after 30 days)
+  - Multi-request tracking (who owes me what across multiple requests)
+
+- **Fraud Prevention & Security:**
+  - Velocity checks (prevent excessive request creation)
+  - Duplicate detection (don't create same split twice)
+  - User verification (confirm recipients before payment)
+  - Amount validation (flag unusually high amounts)
+  - Device fingerprinting for split creators
+  - Dispute tracking (track resolved/unresolved disputes)
+  - Compliance flagging (flag suspicious patterns for AML review)
+
+- **User Interface & Experience:**
+  - Quick split button (home screen shortcut)
+  - Split wizard (step-by-step: select participants → enter amounts → send requests)
+  - Dashboard view (active splits, pending requests, settled splits)
+  - Participant management (add/remove, adjust amounts)
+  - Live updates (see payments come in real-time)
+  - Celebration animations (₦0 balance reached - congratulations!)
+  - Dark mode support
+  - Accessibility (screen reader support, high contrast mode)
+
+**Technical Implementation:**
+- NestJS services: SplitPaymentService, CollectionService, SettlementService, AnalyticsService
+- PostgreSQL tables: bill_splits, split_participants, collections, collection_contributions, payment_requests, payment_request_responses
+- Payment gateway integration (card processor, mobile money)
+- WhatsApp Business API for message delivery
+- AWS SNS for SMS delivery
+- Notification system integration (email, push)
+- Real-time updates via WebSockets
+- 149 acceptance criteria, 145+ tests (82 unit, 46 integration, 17 E2E)
+
+**Database Schema:**
+- bill_splits (id, creator_id, split_name, total_amount, split_type, created_at, settled_at, status)
+- split_participants (id, split_id, participant_id, assigned_amount, paid_amount, payment_status)
+- collections (id, creator_id, collection_name, goal_amount, current_amount, deadline, status)
+- collection_contributions (id, collection_id, contributor_id, amount, payment_date)
+- payment_requests (id, requester_id, requestee_id, amount, split_id, status, expiry_date)
+
+**Performance Benchmarks:**
+- Create split: < 200ms
+- Send payment requests (10 recipients): < 1 second
+- Process payment: < 500ms
+- Settlement calculation (100K transactions): < 5 seconds
+
+**Compliance & Features:**
+- Transaction limits (per transaction, daily, monthly)
+- Dispute resolution SLA (resolve within 48 hours)
+- Transaction confirmation (both parties confirm to settle)
+
+**Cost:** $0 (internal) + message costs (WhatsApp/SMS: ₦500-1K/month)
+**Business Impact:**
+- Social payment volume: 5-10K splits/month
+- User engagement: 30% increase (social features drive stickiness)
+- Referral growth: users invite friends to pay them
+- Revenue: 0.5-1% commission on settlements = ₦100-500K/month
+
+---
+
+### Sprint 37: Escrow Services (NEW)
+**Goal:** Secure transaction holding for buyer-seller confidence in high-value exchanges
+**Story Points:** 28
+**Duration:** Week 74-75 (2 weeks)
+**Epics:** Financial Services & Trust
+
+**Features:**
+- **Escrow Transaction Creation:**
+  - Create escrow transaction (buyer, seller, amount, description)
+  - Escrow types: Buyer-Seller (2-party) or 3-party with intermediary
+  - Transaction milestones (e.g., 50% on order, 50% on delivery)
+  - Escrow terms (deadline, conditions for release)
+  - Dispute escalation contact (arbitrator details if dispute)
+  - Escrow fee model (1-3% depending on amount)
+  - Receipt/contract attachment (PDF upload)
+  - Bulk escrow creation (for marketplace transactions)
+
+- **Fund Lockup & Holding:**
+  - Buyer funds transaction (wallet, card, or bank transfer)
+  - Funds held in escrow account (segregated, separate from operating accounts)
+  - Real-time fund status confirmation (buyer receives confirmation)
+  - Escrow fund security (encryption, audit trail, regulatory compliance)
+  - Fund holding period (until completion, dispute resolution, or timeout)
+  - Interest on held funds (optional: accrue interest on funds held > 30 days)
+  - Multi-currency support (hold in different currencies per transaction)
+
+- **Milestone-Based Release:**
+  - Define payment milestones (e.g., Phase 1, Phase 2)
+  - Milestone conditions (e.g., "Delivery confirmed")
+  - Buyer approval workflow (buyer reviews, approves partial release)
+  - Seller can request early release (with buyer approval)
+  - Auto-release on milestone date if neither party disputes
+  - Partial release (release 30% of escrow on confirmation, 70% on delivery)
+  - Threshold-based releases (release ₦5K increments as delivered)
+
+- **Dispute Management & Resolution:**
+  - Either party can raise dispute (within agreed timeframe)
+  - Dispute categories (non-delivery, damaged goods, service not rendered, fraud)
+  - Evidence submission (photos, messages, transaction proofs)
+  - Timeline for dispute resolution (7-14 days)
+  - Arbitration process:
+    * Automated resolution (simple cases with clear evidence)
+    * Human arbitrator (complex cases, assigned platform moderator)
+    * Third-party arbitration (external arbitrator for high-value)
+  - Dispute communication (message thread between parties)
+  - Settlement options (50/50 split, full release to seller, full refund to buyer, custom split)
+  - Appeal process (if dissatisfied with resolution)
+  - Escalation to legal (for unresolved high-value disputes)
+
+- **Automatic Release & Timeout:**
+  - Auto-release after agreed period (e.g., 30 days)
+  - No dispute raised = automatic release to seller
+  - Grace period (notification 48h before auto-release)
+  - Timeout extension (either party can request extension)
+  - Failed release (refund to buyer if release fails after 3 attempts)
+
+- **Escrow Status Tracking:**
+  - Real-time status updates (CREATED, FUNDED, IN_PROGRESS, PENDING_RELEASE, RELEASED, DISPUTED, RESOLVED, REFUNDED)
+  - Timeline view (visual timeline of escrow lifecycle)
+  - Status notifications (email/SMS/push on status changes)
+  - Buyer dashboard (all escrows as buyer)
+  - Seller dashboard (all escrows as seller)
+  - Arbitrator dashboard (assigned disputes, case management)
+  - Admin dashboard (oversight, dispute escalations)
+
+- **Escrow Analytics & Reporting:**
+  - Total escrow value under management
+  - Average escrow duration
+  - Dispute rate by category
+  - Resolution success rate
+  - Average dispute resolution time
+  - Arbitrator performance metrics (cases resolved, satisfaction rating)
+  - Fraud incident tracking
+  - Revenue from escrow fees
+
+- **Integration with Marketplaces:**
+  - API for marketplace integration (Jumia, Konga can use escrow)
+  - Webhook notifications for order status
+  - Auto-create escrow on order (marketplace → ubiquitous-tribble)
+  - Auto-release on delivery confirmation (from marketplace)
+  - Merchant dashboard integration
+
+- **Use Cases & Templates:**
+  - E-commerce template (product purchase with delivery confirmation)
+  - Freelance template (project milestone-based payment)
+  - Real estate template (deposit with inspection contingency)
+  - Vehicle sales template (deposit with inspection/test drive)
+  - Service template (advance payment for completed work)
+  - Rental deposit template (security deposit with return conditions)
+  - Customizable terms per use case
+
+- **Security & Compliance:**
+  - Fund segregation (escrow funds kept separate from operating funds)
+  - Audit trail (all escrow actions logged)
+  - Regulatory compliance (CBN, NDPR, fraud prevention)
+  - KYC verification (both parties verified)
+  - Amount limits (per transaction, daily limits)
+  - Fraud detection (flag suspicious transactions)
+  - Insurance (optional: transaction insurance for high-value escrows)
+
+- **User Experience & Trust:**
+  - Escrow badge on marketplace (shows escrow-protected)
+  - Trust score (based on escrow history, resolution history)
+  - User reviews (post-transaction, escrow experience rating)
+  - Dispute resolution explainer (help users understand process)
+  - FAQ and help center articles
+  - Live chat support for escrow issues
+  - Video tutorials (escrow process walkthrough)
+
+**Technical Implementation:**
+- NestJS services: EscrowService, DisputeService, ArbitrationService, FundManagementService
+- PostgreSQL tables: escrow_transactions, escrow_milestones, disputes, dispute_evidence, dispute_resolutions, escrow_analytics
+- Separate escrow fund holding account (designated bank account for compliance)
+- Notification system (email, SMS, push)
+- Document storage (S3 for evidence files)
+- 151 acceptance criteria, 148+ tests (84 unit, 48 integration, 16 E2E)
+
+**Database Schema:**
+- escrow_transactions (id, buyer_id, seller_id, amount, fee, status, created_at, release_date)
+- escrow_milestones (id, escrow_id, milestone_name, amount, condition, release_date, approved)
+- disputes (id, escrow_id, dispute_raiser_id, category, description, evidence_url, status, created_at)
+- dispute_resolutions (id, dispute_id, resolution_type, buyer_payout, seller_payout, resolved_by, resolved_at)
+
+**Performance Benchmarks:**
+- Create escrow: < 300ms
+- Fund lockup: < 1 second
+- Dispute filing: < 200ms
+- Auto-release job (10K escrows): < 10 seconds
+
+**Compliance & Features:**
+- CBN fund segregation requirements met
+- AML/KYC verification enforced
+- Dispute resolution timeline tracked
+- Audit trail for regulatory inspection
+
+**Cost:** $0 (internal) + bank account maintenance
+**Business Impact:**
+- Escrow volume: 1K-5K transactions/month (high-value)
+- Transaction value: ₦100M-500M under management
+- Revenue: 1-2% fee on escrow = ₦1M-5M/month
+- Market expansion: Enable high-value P2P transactions
+- Trust metric: 90%+ customer satisfaction with dispute resolution
+
+---
+
+### Sprint 38: Personal Finance Management (PFM) & Insights (NEW)
+**Goal:** Empower users with spending analytics, budgeting tools, and financial insights
+**Story Points:** 30
+**Duration:** Week 76-77 (2 weeks)
+**Epics:** Customer Experience & Financial Wellness
+
+**Features:**
+- **Spending Categorization & Classification:**
+  - Auto-categorize transactions (ML-based or rule-based)
+  - Transaction categories:
+    * Essential (housing, utilities, food, transportation)
+    * Discretionary (entertainment, dining, shopping, subscriptions)
+    * Financial (savings, investments, debt payments)
+    * Charity & giving
+    * Health & wellness
+    * Subscriptions & memberships
+  - Merchant classification (identify transaction source)
+  - User override (reclassify if auto-categorization wrong)
+  - Custom categories (user-defined for specific needs)
+  - Subcategories (food → groceries vs. dining out)
+  - Tag system (label transactions with multiple tags)
+
+- **Monthly Spending Reports:**
+  - Visual spending breakdown (pie chart, bar chart, table)
+  - Month-over-month comparison (this month vs. last month)
+  - Category spending trends (line chart over 12 months)
+  - Spending trends (₦10K last month → ₦12K this month = +20%)
+  - Biggest expense categories (ranked)
+  - Unusual spending alerts (flagged if 50% above normal)
+  - Spending by merchant
+  - Spending by payment method (card, bank transfer, wallet, mobile money)
+  - Export report (PDF, CSV, email to user)
+
+- **Budget Creation & Management:**
+  - Create monthly budgets per category (e.g., Dining: ₦10K/month)
+  - Weekly budget tracking (see progress each week)
+  - Budget allocation (allocate total budget to categories)
+  - Zero-based budgeting (allocate every naira of income)
+  - Rolling budgets (monthly, quarterly, annual cycles)
+  - Shared budgets (couples, roommates, families track together)
+  - Budget templates (recommended budgets by income level)
+  - Budget categories (match spending categories)
+  - Savings goals within budget (allocate % to savings)
+
+- **Budget Alerts & Monitoring:**
+  - Alert at 75% of budget spent (warning)
+  - Alert at 90% of budget spent (serious warning)
+  - Alert at 100% of budget spent (budget exceeded)
+  - Real-time notifications (SMS, email, in-app)
+  - Customizable thresholds (set your own alert levels)
+  - Budget reset calendar (shows next reset date)
+  - Budget variance tracking (expected vs. actual)
+  - Overspend tracking (by how much did you exceed budget?)
+
+- **Savings Goals & Tracking:**
+  - Create financial goals (Buy iPhone: ₦500K, Emergency Fund: ₦100K)
+  - Goal types:
+    * Short-term (1-6 months): Wedding, vacation, gadget
+    * Medium-term (6-24 months): Car, business startup
+    * Long-term (2+ years): House down payment, retirement
+  - Set goal amounts and target dates
+  - Auto-allocate percentage of income to goal
+  - Goal progress tracking (visual progress bar)
+  - Savings rate (how much per month to reach goal)
+  - Goal milestones (e.g., "Halfway there! Keep going")
+  - Goal completion celebration (unlock achievement badge)
+  - Recurring savings (auto-transfer ₦5K/month to goal)
+
+- **Financial Insights & Recommendations:**
+  - Smart insights (AI-generated personalized insights)
+  - Examples:
+    * "You spent 45% more on dining this month vs. last month. Consider reducing by ₦2K to stay on track."
+    * "You've saved ₦50K toward your Emergency Fund. At this pace, you'll reach your ₦100K goal in 2 months!"
+    * "Your subscription costs are ₦3,500/month. Consider canceling unused services."
+    * "You spent ₦200 on coffee 5 times this week. That's ₦1,000/month!"
+    * "Your electricity bill is 20% higher than neighborhood average. Consider energy-saving measures."
+  - Benchmarking (compare your spending to similar demographics)
+  - Spending insights (show top spending categories)
+  - Saving opportunities (identify and quantify cost reduction opportunities)
+  - Financial health score (0-100 based on spending patterns, savings rate, debt)
+  - Personalized recommendations (based on goals and budget)
+  - Tips & tricks (educational content on budgeting, saving)
+
+- **Income Tracking & Net Worth:**
+  - Track income sources (salary, freelance, business, side gigs)
+  - Monthly income dashboard
+  - Income vs. expense tracking (are you spending more than earning?)
+  - Savings rate calculation (income - expenses / income × 100%)
+  - Net worth tracking (if integrated with bank account linking)
+  - Income growth tracking (year-over-year income comparison)
+  - Income documentation (upload pay slips for verification)
+
+- **Debt Tracking & Repayment:**
+  - Track personal loans, credit card debt, buy-now-pay-later
+  - Debt balance and interest tracking
+  - Payment schedule (due dates, payment amounts)
+  - Payment reminders (email/SMS before due date)
+  - Early payoff calculator (show interest saved if paid early)
+  - Debt repayment strategies (avalanche vs. snowball)
+  - Debt-free goal (track progress to becoming debt-free)
+
+- **Cash Flow Forecasting:**
+  - Project next month's cash flow (income - planned expenses)
+  - Identify cash flow gaps (months where expenses > income)
+  - Seasonal spending patterns (show high-spend months like Dec, May)
+  - Income volatility (for freelancers/variable income)
+  - Upcoming large expenses (flagged in calendar)
+  - Forecast warnings (alert if projected deficit)
+
+- **Financial Health Dashboard:**
+  - Financial health score (0-100)
+  - Key metrics:
+    * Savings rate (% of income saved)
+    * Debt-to-income ratio (total debt / annual income)
+    * Emergency fund coverage (savings / monthly expenses)
+    * Budget adherence (actual vs. budget)
+  - Goals progress (how close to achieving goals)
+  - Trends (improving or declining health)
+  - Recommendations (personalized actions to improve health)
+  - Peer comparison (optional: how you compare to similar users)
+
+- **Analytics & Trend Analysis:**
+  - Spending trends (identify patterns, anomalies)
+  - Merchant analysis (top merchants, merchant frequency)
+  - Payment method usage (which methods you use most)
+  - Time-based analysis (spending by day of week, week of month)
+  - Seasonal patterns (higher spending in certain months)
+  - Correlation analysis (spending correlations across categories)
+  - Anomaly detection (unusual transactions flagged)
+  - Cohort analysis (compare against similar users)
+
+- **Data Export & Integration:**
+  - Export spending data (CSV, Excel, PDF)
+  - Connect to accounting software (QuickBooks, Wave)
+  - Tax document export (receipts, invoices for tax filing)
+  - Bank integration (if open banking available)
+  - Cloud storage integration (backup data to Google Drive, Dropbox)
+
+- **Privacy & Data Security:**
+  - PII anonymization (don't share real names in analytics)
+  - Data encryption (spending data encrypted at rest)
+  - User consent (opt-in for analytics and recommendations)
+  - Data retention (user control over data retention period)
+  - Right to deletion (delete all personal spending data)
+
+**Technical Implementation:**
+- NestJS services: TransactionCategoryService, BudgetService, InsightsService, AnalyticsService, ForecastingService
+- PostgreSQL tables: spending_categories, budgets, savings_goals, financial_health_scores, budget_transactions, insights
+- ML models (TensorFlow/Scikit-learn) for spending classification and insights generation
+- Real-time calculation service (spending totals, budget % used)
+- Scheduled jobs (daily insights generation, monthly report generation)
+- Chart library (Recharts for visualizations)
+- 157 acceptance criteria, 153+ tests (87 unit, 49 integration, 17 E2E)
+
+**Database Schema:**
+- spending_categories (id, category_name, icon, parent_category_id)
+- budgets (id, user_id, category_id, budget_amount, period, start_date, end_date)
+- budget_transactions (id, budget_id, transaction_id, amount, transaction_date)
+- savings_goals (id, user_id, goal_name, target_amount, current_amount, target_date, goal_type)
+- financial_health_scores (id, user_id, score, savings_rate, debt_to_income, recorded_date)
+- insights (id, user_id, insight_text, insight_type, generated_date, read_date)
+
+**Performance Benchmarks:**
+- Categorize transaction: < 100ms (cached model)
+- Generate monthly report (500 transactions): < 1 second
+- Calculate financial health score: < 200ms
+- Insight generation job (100K users): < 60 seconds
+
+**Compliance & Features:**
+- PII protection in analytics (anonymized data)
+- GDPR/NDPR data handling
+- User consent for data processing
+- No sharing of spending data with 3rd parties
+
+**Cost:** $0 (internal) + optional ML infrastructure (if using cloud ML service)
+**Business Impact:**
+- User engagement: 2x increase (daily active users checking budget)
+- Retention: 40% reduction in churn (helpful features create stickiness)
+- Upsell opportunity: Offer premium insights, debt consolidation services
+- Data insights: Aggregate anonymized spending patterns for research
+- Revenue: Potential partnerships with merchants for behavioral insights
+
+---
+
+### Sprint 39: Production Readiness & Advanced Analytics (NEW)
+**Goal:** Production-grade infrastructure, analytics enhancements, and operational excellence
+**Story Points:** 35
+**Duration:** Week 78-79 (2 weeks)
+**Epics:** Infrastructure, Operations & Analytics
+
+**Features:**
+- **Production Infrastructure Hardening:**
+  - Database optimization (index tuning, query optimization)
+  - Connection pooling (PgBouncer for PostgreSQL)
+  - Cache layer optimization (Redis multi-level caching)
+  - Content Delivery Network (CDN) for static assets (CloudFront)
+  - Load balancing configuration (multi-region setup if needed)
+  - Database replication (master-slave for high availability)
+  - Backup automation (daily encrypted backups, disaster recovery testing)
+  - Secrets management (HashiCorp Vault or AWS Secrets Manager)
+  - Environment configuration (separate dev/staging/production configs)
+  - Log aggregation (ELK Stack or CloudWatch for centralized logging)
+
+- **Monitoring & Observability:**
+  - Application Performance Monitoring (APM) - New Relic or DataDog
+  - Distributed tracing (trace requests across microservices)
+  - Real-time dashboards (TPS, response times, error rates)
+  - Health check endpoints (liveness and readiness probes)
+  - Synthetic monitoring (test critical paths regularly)
+  - User experience monitoring (track user-perceived performance)
+  - Database performance monitoring (slow query logging, index analysis)
+  - Infrastructure metrics (CPU, memory, disk, network)
+  - Cost monitoring (track AWS/cloud spend by service)
+  - Alert routing (PagerDuty integration for critical alerts)
+
+- **Advanced Analytics Platform:**
+  - Event tracking infrastructure (Segment or custom)
+  - User behavior analytics (funnel analysis, user journeys)
+  - Cohort analysis (segment users by acquisition date, behavior)
+  - Retention analysis (day 1, day 7, day 30 retention)
+  - Churn prediction (ML model to predict churn risk)
+  - LTV (Lifetime Value) calculation and tracking
+  - CAC (Customer Acquisition Cost) tracking by channel
+  - Payback period calculation (for growth initiatives)
+  - Product analytics dashboard (segment, event aggregation)
+  - A/B testing framework (statistical significance testing)
+  - Custom events tracking (all critical user actions)
+
+- **Real-Time Dashboards & Reporting:**
+  - Executive dashboard (KPIs: MAU, MRR, churn, LTV)
+  - Operations dashboard (TPS, transaction success rate, error rate)
+  - Business dashboard (revenue breakdown, top merchants, top products)
+  - Marketing dashboard (CAC, referral conversion, campaign performance)
+  - Fraud dashboard (fraud detection alerts, suspicious transactions)
+  - Support dashboard (ticket volume, response time, CSAT)
+  - Compliance dashboard (KYC coverage, AML alerts, CBN reporting)
+  - Data warehouse (snowflake or postgres warehouse for BI)
+  - Self-service BI tool (Metabase or Tableau for custom reports)
+  - Scheduled reports (weekly email reports to stakeholders)
+
+- **Performance Optimization:**
+  - API response time optimization (target < 200ms P95)
+  - Database query optimization (eliminate N+1 queries)
+  - Frontend performance (code splitting, lazy loading)
+  - Image optimization (compression, CDN delivery)
+  - Caching strategy optimization (Redis TTL tuning)
+  - Payment processing performance (faster settlement)
+  - Batch job optimization (process 100K records in < 5 minutes)
+  - Load testing (validate system handles 10K TPS)
+  - Stress testing (identify failure points)
+  - Capacity planning (estimate infrastructure needs for scaling)
+
+- **Operational Excellence:**
+  - Runbooks (documented procedures for common operations)
+  - Incident response procedures (defined escalation, communication)
+  - On-call rotation setup (24/7 support with PagerDuty)
+  - Post-incident reviews (document lessons learned)
+  - Change management process (approve and track deployments)
+  - Deployment pipeline (automated testing, staging, production)
+  - Rollback procedures (quick recovery from bad deployments)
+  - Database migration strategy (zero-downtime deployments)
+  - Feature flags (control feature rollout, quick disable if issues)
+  - Chaos engineering (inject failures, test resilience)
+
+- **Data Governance & Quality:**
+  - Data validation rules (ensure data quality)
+  - Data lineage tracking (document data flow)
+  - Master data management (consistent customer master data)
+  - Data cataloging (document all data assets)
+  - Data retention policies (follow GDPR/NDPR requirements)
+  - Data quality monitoring (flag inconsistencies, duplicates)
+  - Data masking (sensitive data redaction in non-prod)
+  - Data lineage documentation (where data comes from, how it flows)
+
+- **Customer Support Enhancements:**
+  - Knowledge base expansion (500+ articles covering all features)
+  - Video tutorials (screen recordings for key features)
+  - Chatbot implementation (FAQ automation, reduce support volume)
+  - Support analytics (identify common issues, create solutions)
+  - Self-service portal expansion (empower users to self-resolve)
+  - Community forum (peer support, reduce support tickets)
+  - Support metrics tracking (CSAT, response time, resolution time)
+  - Escalation playbooks (documented procedures for complex issues)
+
+- **Security Audit & Compliance:**
+  - Code security scanning (SAST - static code analysis)
+  - Dependency scanning (identify vulnerable libraries)
+  - OWASP Top 10 compliance verification
+  - API security testing (authorization checks, injection tests)
+  - Database security review (proper access controls, encryption)
+  - Infrastructure security audit (firewall rules, security groups)
+  - Compliance checklist (CBN, NDPR, PCI DSS requirements)
+  - Security documentation (design documents, threat models)
+
+- **Team Scaling & Documentation:**
+  - Technical documentation (architecture, design decisions)
+  - API documentation (auto-generated from OpenAPI spec)
+  - Architecture decision records (document why decisions were made)
+  - Deployment documentation (how to deploy, rollback)
+  - Training materials (for new team members)
+  - Code quality standards (linting, formatting, testing)
+  - Technical onboarding (setup guide for new developers)
+
+- **Scalability Planning:**
+  - Horizontal scaling analysis (stateless services ready for multiple instances)
+  - Database scaling (sharding strategy for user/transaction data)
+  - Message queue evaluation (Kafka for event streaming)
+  - Caching layer expansion (multi-level caching strategy)
+  - CDN optimization (global content delivery)
+  - API rate limiting (protect against abuse, ensure fairness)
+  - Resource forecasting (predict infrastructure needs 6-12 months ahead)
+  - Cost optimization (reserved capacity, spot instances)
+
+**Technical Implementation:**
+- Monitoring tools: Datadog or New Relic for APM
+- Logging: ELK Stack or CloudWatch
+- Data warehouse: Postgres + pgAdmin, or Snowflake
+- BI tool: Metabase or Tableau
+- Feature flag service: LaunchDarkly or custom
+- Incident management: PagerDuty
+- Documentation: Confluence or Notion
+- Testing framework: Jest, Supertest, k6 (load testing)
+- 168 acceptance criteria, 160+ tests (including performance tests)
+
+**Performance Benchmarks:**
+- API latency: < 200ms (P95)
+- Database query: < 100ms for most queries
+- Payment processing: < 2 seconds end-to-end
+- Batch job: 100K records in < 5 minutes
+- System uptime: 99.95%+
+- Data warehouse query: < 30 seconds for most reports
+- Incident MTTR: < 15 minutes (mean time to recovery)
+
+**Compliance Certification:**
+- PCI DSS Level 1 compliance (ready for audit)
+- NDPR compliance (privacy impact assessment completed)
+- CBN operational requirements (reporting, KYC, AML)
+- ISO 27001 readiness (information security)
+
+**Cost:** $50K-100K (APM tools, BI tools, additional infrastructure)
+**Business Impact:**
+- Operational reliability: 99.95% uptime (vs. 99% baseline)
+- Decision-making: Data-driven insights for product decisions
+- Growth enablement: Infrastructure ready to scale to 1M+ users
+- Compliance: Pass regulatory audits with confidence
+- Team efficiency: Operational automation reduces toil
+- Customer satisfaction: Faster response times, fewer outages
+
+---
+
 **Future Phases (Year 2+):**
 
 ### Phase 3: Advanced Financial Products
