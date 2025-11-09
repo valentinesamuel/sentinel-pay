@@ -8,53 +8,72 @@
 ## Sprint Goal
 Build comprehensive notification system with multi-channel delivery, webhook infrastructure, and event streaming.
 
-## User Stories
+## FEATURE-20.1: Multi-Channel Notifications
 
-### US-20.1.1 - Multi-Channel Notifications (15 SP)
-**As a user, I want to receive notifications through my preferred channels**
+### 📘 User Story: US-20.1.1 - Multi-Channel Notifications (15 SP)
 
-**Channels:**
-- Email (transactional + marketing)
-- SMS (OTP, alerts, receipts)
-- Push notifications (mobile + web)
-- In-app notifications
+**As a user, I want to receive notifications through my preferred channels, so that I stay informed about account activity**
 
-**Features:**
-- Template management
-- Personalization
-- Delivery tracking
-- Retry logic
-- Unsubscribe management
-- Channel preferences
+#### Acceptance Criteria
 
-### US-20.2.1 - Webhook System (12 SP)
+**Email Notifications:**
+- [ ] **AC1:** Send transactional emails (login, transaction, refund)
+- [ ] **AC2:** Send marketing emails (promotions, features)
+- [ ] **AC3:** Email templates with Handlebars variables
+- [ ] **AC4:** Email personalization (name, amount, date)
+- [ ] **AC5:** Delivery tracking (sent, opened, clicked)
+- [ ] **AC6:** Unsubscribe management per email type
+- [ ] **AC7:** Batch sending (1000+ per minute)
+
+**SMS Notifications:**
+- [ ] **AC8:** Send OTP for 2FA
+- [ ] **AC9:** Send transaction receipts
+- [ ] **AC10:** Send alerts (high amounts, fraud detected)
+- [ ] **AC11:** SMS templating
+- [ ] **AC12:** Opt-in/opt-out per SMS type
+- [ ] **AC13:** Character limit validation (160 chars)
+
+**Push & In-App:**
+- [ ] **AC14:** Mobile push notifications (iOS/Android)
+- [ ] **AC15:** In-app notification center
+- [ ] **AC16:** Web push notifications
+- [ ] **AC17:** User channel preferences
+- [ ] **AC18:** Notification history (90-day retention)
+
+### 📘 User Story: US-20.2.1 - Webhook System (12 SP)
+
 **As a developer, I want to receive real-time events via webhooks**
 
-**Features:**
-- Webhook endpoint registration
-- Event subscription
-- Signature verification
-- Retry with exponential backoff
-- Webhook logs
-- Test webhooks
+#### Acceptance Criteria
 
-**Events:**
-- Transaction completed
-- Payment received
-- Refund processed
-- Dispute opened
-- KYC verified
-- Wallet credited/debited
+**Webhook Management:**
+- [ ] **AC1:** Register webhook endpoints
+- [ ] **AC2:** HMAC-SHA256 signature verification
+- [ ] **AC3:** Subscribe to specific event types
+- [ ] **AC4:** Test webhook delivery
+- [ ] **AC5:** Webhook logs (last 30 deliveries)
+- [ ] **AC6:** Retry with exponential backoff (3 retries)
 
-### US-20.3.1 - Event Streaming (8 SP)
+**Event Types:**
+- [ ] **AC7:** transaction.completed
+- [ ] **AC8:** payment.received
+- [ ] **AC9:** refund.processed
+- [ ] **AC10:** dispute.opened
+- [ ] **AC11:** kyc.verified
+- [ ] **AC12:** wallet.credited/debited
+
+### 📘 User Story: US-20.3.1 - Event Streaming (8 SP)
+
 **As a platform, I want to stream events for real-time processing**
 
-**Features:**
-- Event bus (Kafka/RabbitMQ)
-- Event schemas
-- Event replay
-- Dead letter queue
-- Event analytics
+#### Acceptance Criteria
+
+**Event Bus:**
+- [ ] **AC1:** Kafka/RabbitMQ event streaming
+- [ ] **AC2:** Event schemas (JSON Schema validation)
+- [ ] **AC3:** Event replay capability (7-day window)
+- [ ] **AC4:** Dead letter queue for failed events
+- [ ] **AC5:** Event analytics and metrics
 
 ## Technical Specifications
 

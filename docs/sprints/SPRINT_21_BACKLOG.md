@@ -5,56 +5,67 @@
 ## Sprint Goal
 Implement comprehensive reporting and analytics platform with dashboards, custom reports, data exports, and business intelligence.
 
-## User Stories
+---
 
-### US-21.1.1 - Business Intelligence Dashboard (15 SP)
-**As an executive, I want real-time business insights**
+## FEATURE-21.1: Business Intelligence Dashboards
 
-**Dashboards:**
-- Revenue dashboard (daily/weekly/monthly)
-- Transaction volume and trends
-- User growth and engagement
-- Payment method distribution
-- Geographic distribution
-- Top merchants/services
+### 📘 User Story: US-21.1.1 - Business Intelligence Dashboard (15 SP)
 
-**Features:**
-- Real-time data updates
-- Customizable widgets
-- Date range selection
-- Export capabilities (PDF/Excel)
-- Scheduled email reports
-- Mobile-responsive
+**As an executive, I want real-time business insights dashboard**
 
-### US-21.2.1 - Custom Report Builder (13 SP)
-**As an analyst, I want to create custom reports**
+#### Acceptance Criteria
+
+**Dashboard Components:**
+- [ ] **AC1:** Revenue dashboard (daily/weekly/monthly)
+- [ ] **AC2:** Transaction volume and trends (line charts)
+- [ ] **AC3:** User growth and engagement metrics
+- [ ] **AC4:** Payment method distribution (pie charts)
+- [ ] **AC5:** Geographic distribution (heat maps)
+- [ ] **AC6:** Top 10 merchants/services by volume
 
 **Features:**
-- Drag-and-drop report builder
-- Multiple data sources
-- Advanced filtering
-- Calculated fields
-- Grouping and aggregation
-- Charts and visualizations
-- Report scheduling
-- Template library
+- [ ] **AC7:** Real-time data updates (< 1 minute latency)
+- [ ] **AC8:** Customizable widgets (drag & drop)
+- [ ] **AC9:** Date range selection (1 day - 5 years)
+- [ ] **AC10:** Export to PDF/Excel
+- [ ] **AC11:** Scheduled email reports
+- [ ] **AC12:** Mobile-responsive design
+- [ ] **AC13:** Dashboard save/favorites
+- [ ] **AC14:** Drill-down analysis
 
-### US-21.3.1 - Data Export & Integration (10 SP)
+### 📘 User Story: US-21.2.1 - Custom Report Builder (13 SP)
+
+**As an analyst, I want to create custom reports without coding**
+
+#### Acceptance Criteria
+
+**Report Builder:**
+- [ ] **AC1:** Drag-and-drop interface
+- [ ] **AC2:** Multiple data source selection
+- [ ] **AC3:** Advanced filtering (AND/OR logic)
+- [ ] **AC4:** Calculated fields (formulas)
+- [ ] **AC5:** Grouping and aggregation
+- [ ] **AC6:** Chart templates (bar, pie, line, etc.)
+- [ ] **AC7:** Report scheduling (daily/weekly/monthly)
+- [ ] **AC8:** Template library (pre-built)
+- [ ] **AC9:** Save report as PDF/Excel
+- [ ] **AC10:** Share reports with team
+
+### 📘 User Story: US-21.3.1 - Data Export & Integration (10 SP)
+
 **As a finance team, I want to export data for external systems**
 
-**Export Formats:**
-- CSV, Excel, JSON, XML
-- Scheduled exports
-- FTP/SFTP delivery
-- API endpoints for BI tools
-- Data warehouse integration
+#### Acceptance Criteria
 
-**Data Sets:**
-- Transaction data
-- User data
-- Financial summaries
-- Reconciliation data
-- Compliance reports
+**Export Formats:**
+- [ ] **AC1:** CSV export
+- [ ] **AC2:** Excel export (multi-sheet)
+- [ ] **AC3:** JSON export
+- [ ] **AC4:** XML export
+- [ ] **AC5:** Scheduled exports (email delivery)
+- [ ] **AC6:** FTP/SFTP delivery to external system
+- [ ] **AC7:** API endpoints for BI tool integration
+- [ ] **AC8:** Data warehouse connectors
 
 ## Technical Specifications
 
