@@ -519,19 +519,37 @@ enum ReconciliationStatus {
 
 ## FEATURE-40.4: Receipt Management & Inventory Integration
 
-### 📘 User Story: US-40.4.1 - Digital & Printed Receipt with Optional Inventory Sync (3 SP)
+### 📘 User Story: US-40.4.1 - Receipt Data Retrieval & Digital Delivery (3 SP)
 
-**As a customer, I want digital or printed receipts with transaction details, and merchants can optionally sync inventory**
+**As a cashier/frontend, I want to retrieve transaction receipt details from the backend and render the receipt format (print, PDF, HTML), then optionally send via SMS/Email**
+
+#### Business Value
+Separates backend data concerns from frontend presentation, allowing flexibility in receipt styling, formats, and customization per merchant. Merchants can brand receipts and customize layout without backend changes. Reduces backend complexity for receipt generation while enabling rich frontend UI.
+
+#### Success Criteria
+- Receipt data API returns all necessary transaction/merchant/item details
+- Frontend can format receipt in 3+ output formats (thermal print, PDF, HTML)
+- SMS/Email delivery requests are handled by backend after frontend formatting
+- Optional inventory item tracking per transaction
+- Real-time inventory count updates on item sale
 
 #### Acceptance Criteria
 
-- [ ] **AC1:** Generate receipt with merchant name, date, time, items list, total amount
-- [ ] **AC2:** Print receipt on thermal printer with formatting
-- [ ] **AC3:** Send SMS receipt with transaction confirmation code
-- [ ] **AC4:** Send email receipt with PDF attachment
-- [ ] **AC5:** Generate QR code on receipt linking to transaction details
-- [ ] **AC6:** Support optional inventory item tracking per transaction
-- [ ] **AC7:** Update inventory count in real-time on item sale
+- [ ] **AC1:** API returns receipt data with merchant name, date, time, items, amounts, fees
+- [ ] **AC2:** API response includes transaction details (amount, payment method, auth code, RRN/STAN)
+- [ ] **AC3:** API response includes cashier and terminal information
+- [ ] **AC4:** API response includes QR code URL for transaction verification
+- [ ] **AC5:** Frontend renders receipt for thermal printer (58mm width, 60+ chars per line)
+- [ ] **AC6:** Frontend generates PDF receipt with proper formatting and merchant branding
+- [ ] **AC7:** Frontend generates HTML receipt for digital display
+- [ ] **AC8:** Frontend can send SMS receipt via backend SMS delivery endpoint
+- [ ] **AC9:** Frontend can send email receipt via backend email delivery endpoint
+- [ ] **AC10:** Backend supports SMS delivery with configurable text format
+- [ ] **AC11:** Backend supports email delivery with PDF attachment option
+- [ ] **AC12:** Support optional inventory item tracking per transaction
+- [ ] **AC13:** Update inventory count in real-time on item sale
+- [ ] **AC14:** API supports query parameters to include/exclude QR code, items, etc.
+- [ ] **AC15:** Receipt data includes itemized breakdown (quantity, unit price, total)
 
 ---
 

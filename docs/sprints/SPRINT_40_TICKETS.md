@@ -307,18 +307,16 @@ End cashier session and initiate till reconciliation.
 
 ---
 
-### 7. Receipt Generation Endpoint
+### 7. Receipt Data Endpoint
 
-**GET /api/v1/pos/transactions/{transactionId}/receipt**
+**GET /api/v1/pos/transactions/{transactionId}/receipt-data**
 
-Generate receipt for transaction (supports multiple formats).
+Retrieve receipt details for frontend rendering. Backend provides data only; frontend is responsible for generating receipt format (PDF, print, HTML) and rendering.
 
 **Query Parameters:**
 ```
-format=PDF|HTML|PLAIN_TEXT
-delivery=PRINT|SMS|EMAIL|DOWNLOAD
-phoneNumber=2348012345678 (if SMS)
-email=customer@example.com (if EMAIL)
+includeQrCode=true|false (default: true)
+includeItems=true|false (default: true)
 ```
 
 **Response (200):**
@@ -327,25 +325,91 @@ email=customer@example.com (if EMAIL)
   "success": true,
   "receiptNumber": "REC-20241109-001",
   "transactionId": "txn_550e8400e29b41d4a716446655440000",
-  "format": "PDF",
-  "delivery": "EMAIL",
-  "content": {
-    "merchant": {
-      "name": "Sample Store",
-      "address": "123 Main Street, Lagos",
-      "phone": "2348012345678"
-    },
-    "transaction": {
-      "dateTime": "2024-11-09T14:30:00Z",
-      "amount": 25000.00,
-      "currency": "NGN",
-      "paymentMethod": "CARD",
-      "last4Digits": "4242",
-      "authorizationCode": "AUTH-123456"
-    },
-    "qrCode": "https://payment.example.com/verify/txn_550e8400e29b41d4a716446655440000"
+  "merchant": {
+    "name": "Sample Store",
+    "address": "123 Main Street, Lagos",
+    "phone": "2348012345678",
+    "taxId": "12345678-0001"
   },
-  "deliveryStatus": "SENT"
+  "transaction": {
+    "dateTime": "2024-11-09T14:30:00Z",
+    "amount": 25000.00,
+    "currency": "NGN",
+    "paymentMethod": "CARD",
+    "cardType": "VISA",
+    "last4Digits": "4242",
+    "authorizationCode": "AUTH-123456",
+    "rrn": "123456789012",
+    "stan": "000001"
+  },
+  "items": [
+    {
+      "description": "Product Name",
+      "quantity": 2,
+      "unitPrice": 10000.00,
+      "totalPrice": 20000.00
+    }
+  ],
+  "summary": {
+    "subtotal": 24000.00,
+    "discount": 0.00,
+    "tax": 1000.00,
+    "total": 25000.00,
+    "feeAmount": 250.00,
+    "settlementAmount": 24750.00
+  },
+  "cashier": {
+    "name": "Sarah Johnson",
+    "id": "emp_550e8400e29b41d4a716446655440000"
+  },
+  "terminal": {
+    "id": "term_550e8400e29b41d4a716446655440000",
+    "serialNumber": "TERM-2024-00001"
+  },
+  "qrCode": "https://payment.example.com/verify/txn_550e8400e29b41d4a716446655440000"
+}
+```
+
+### 7b. Send Receipt Endpoint
+
+**POST /api/v1/pos/transactions/{transactionId}/send-receipt**
+
+Send receipt via SMS or Email. Frontend renders receipt content and sends formatted message through this endpoint.
+
+**Request:**
+```json
+{
+  "method": "SMS|EMAIL",
+  "phoneNumber": "2348012345678",
+  "email": "customer@example.com",
+  "formattedContent": "Receipt content (plain text or formatted string)",
+  "attachmentUrl": "https://storage.example.com/receipt_2024_11_09_001.pdf"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "deliveryId": "delivery_550e8400e29b41d4a716446655440000",
+  "method": "SMS",
+  "recipient": "2348012345678",
+  "status": "SENT",
+  "shortCode": "TXN123456",
+  "sentAt": "2024-11-09T14:30:05Z"
+}
+```
+
+**Response (200 - Email):**
+```json
+{
+  "success": true,
+  "deliveryId": "delivery_550e8400e29b41d4a716446655440001",
+  "method": "EMAIL",
+  "recipient": "customer@example.com",
+  "status": "SENT",
+  "subject": "Receipt for Transaction REC-20241109-001",
+  "sentAt": "2024-11-09T14:30:05Z"
 }
 ```
 

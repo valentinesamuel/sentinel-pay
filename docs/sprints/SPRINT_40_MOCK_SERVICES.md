@@ -723,74 +723,146 @@ export class QRCodePaymentMock {
 
 ---
 
-## 4. Receipt Printer Mock
+## 4. Receipt Data Provider Mock
 
-Simulates thermal receipt printer with realistic document generation and delivery.
+Simulates backend receipt data retrieval and SMS/Email delivery service (frontend handles receipt rendering).
 
 ```typescript
 @Injectable()
-export class ReceiptPrinterMock {
-  private readonly PRINT_LATENCY_MIN = 2000;
-  private readonly PRINT_LATENCY_MAX = 5000;
-  private readonly PRINT_SUCCESS_RATE = 0.98; // 2% paper jam/error rate
+export class ReceiptDataProviderMock {
+  private readonly DATA_RETRIEVAL_LATENCY = 100; // ms
   private readonly SMS_DELIVERY_LATENCY_MIN = 2000;
   private readonly SMS_DELIVERY_LATENCY_MAX = 8000;
   private readonly EMAIL_DELIVERY_LATENCY_MIN = 3000;
   private readonly EMAIL_DELIVERY_LATENCY_MAX = 15000;
+  private readonly SMS_DELIVERY_SUCCESS_RATE = 0.98; // 2% failure rate
+  private readonly EMAIL_DELIVERY_SUCCESS_RATE = 0.99; // 1% failure rate
 
-  async printReceipt(
-    transactionData: {
-      transactionId: string;
+  async getReceiptData(
+    transactionId: string,
+    includeQrCode: boolean = true,
+    includeItems: boolean = true,
+  ): Promise<{
+    receiptNumber: string;
+    transactionId: string;
+    merchant: {
+      name: string;
+      address: string;
+      phone: string;
+      taxId: string;
+    };
+    transaction: {
+      dateTime: string;
       amount: number;
       currency: string;
       paymentMethod: string;
-      merchantName: string;
-      merchantAddress: string;
-      cardLast4?: string;
-      customerName?: string;
-    },
-  ): Promise<{
-    printId: string;
-    status: string;
-    printTime_ms: number;
-    error?: string;
+      cardType?: string;
+      last4Digits?: string;
+      authorizationCode: string;
+      rrn: string;
+      stan: string;
+    };
+    items?: Array<{
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      totalPrice: number;
+    }>;
+    summary: {
+      subtotal: number;
+      discount: number;
+      tax: number;
+      total: number;
+      feeAmount: number;
+      settlementAmount: number;
+    };
+    cashier: {
+      name: string;
+      id: string;
+    };
+    terminal: {
+      id: string;
+      serialNumber: string;
+    };
+    qrCode?: string;
+    retrievalTime_ms: number;
   }> {
     const startTime = Date.now();
 
-    // Simulate print latency
-    const printLatency = this.getRandomLatency(
-      this.PRINT_LATENCY_MIN,
-      this.PRINT_LATENCY_MAX,
-    );
-    await this.delay(printLatency);
+    // Simulate data retrieval latency
+    await this.delay(this.DATA_RETRIEVAL_LATENCY);
 
-    // Check for paper jam or other hardware errors
-    if (Math.random() > this.PRINT_SUCCESS_RATE) {
-      return {
-        printId: `print_${Date.now()}`,
-        status: 'FAILED',
-        printTime_ms: Date.now() - startTime,
-        error: 'PAPER_JAM',
-      };
-    }
-
-    const receiptContent = this.formatReceiptContent(transactionData);
-
-    return {
-      printId: `print_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      status: 'SUCCESS',
-      printTime_ms: Date.now() - startTime,
+    const receiptData = {
+      receiptNumber: `REC-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      transactionId,
+      merchant: {
+        name: 'Sample Store',
+        address: '123 Main Street, Lagos',
+        phone: '2348012345678',
+        taxId: '12345678-0001',
+      },
+      transaction: {
+        dateTime: new Date().toISOString(),
+        amount: 25000,
+        currency: 'NGN',
+        paymentMethod: 'CARD',
+        cardType: 'VISA',
+        last4Digits: '4242',
+        authorizationCode: 'AUTH-123456',
+        rrn: `${Math.random().toString().substring(2, 14)}`,
+        stan: String(Math.floor(Math.random() * 1000000)).padStart(6, '0'),
+      },
+      ...(includeItems && {
+        items: [
+          {
+            description: 'Product Name',
+            quantity: 2,
+            unitPrice: 10000,
+            totalPrice: 20000,
+          },
+          {
+            description: 'Service Fee',
+            quantity: 1,
+            unitPrice: 5000,
+            totalPrice: 5000,
+          },
+        ],
+      }),
+      summary: {
+        subtotal: 24000,
+        discount: 0,
+        tax: 1000,
+        total: 25000,
+        feeAmount: 250,
+        settlementAmount: 24750,
+      },
+      cashier: {
+        name: 'Sarah Johnson',
+        id: 'emp_550e8400e29b41d4a716446655440000',
+      },
+      terminal: {
+        id: 'term_550e8400e29b41d4a716446655440000',
+        serialNumber: 'TERM-2024-00001',
+      },
+      ...(includeQrCode && {
+        qrCode: `https://payment.example.com/verify/${transactionId}`,
+      }),
+      retrievalTime_ms: Date.now() - startTime,
     };
+
+    return receiptData;
   }
 
   async sendSMSReceipt(
-    customerPhone: string,
-    transactionData: any,
+    recipient: string,
+    formattedContent: string,
   ): Promise<{
-    smsId: string;
+    deliveryId: string;
+    method: string;
+    recipient: string;
     status: string;
-    deliveryTime_ms: number;
     shortCode?: string;
+    deliveryTime_ms: number;
   }> {
     const startTime = Date.now();
 
@@ -801,22 +873,42 @@ export class ReceiptPrinterMock {
     );
     await this.delay(deliveryLatency);
 
+    // Check delivery success
+    const deliverySuccess = Math.random() < this.SMS_DELIVERY_SUCCESS_RATE;
+
+    if (!deliverySuccess) {
+      return {
+        deliveryId: `delivery_${Date.now()}`,
+        method: 'SMS',
+        recipient,
+        status: 'FAILED',
+        deliveryTime_ms: Date.now() - startTime,
+      };
+    }
+
     const shortCode = `TXN${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     return {
-      smsId: `sms_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      status: 'DELIVERED',
-      deliveryTime_ms: Date.now() - startTime,
+      deliveryId: `delivery_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      method: 'SMS',
+      recipient,
+      status: 'SENT',
       shortCode,
+      deliveryTime_ms: Date.now() - startTime,
     };
   }
 
   async sendEmailReceipt(
-    customerEmail: string,
-    transactionData: any,
+    recipient: string,
+    subject: string,
+    formattedContent: string,
+    attachmentUrl?: string,
   ): Promise<{
-    emailId: string;
+    deliveryId: string;
+    method: string;
+    recipient: string;
     status: string;
+    subject: string;
     deliveryTime_ms: number;
   }> {
     const startTime = Date.now();
@@ -828,39 +920,28 @@ export class ReceiptPrinterMock {
     );
     await this.delay(deliveryLatency);
 
+    // Check delivery success
+    const deliverySuccess = Math.random() < this.EMAIL_DELIVERY_SUCCESS_RATE;
+
+    if (!deliverySuccess) {
+      return {
+        deliveryId: `delivery_${Date.now()}`,
+        method: 'EMAIL',
+        recipient,
+        status: 'FAILED',
+        subject,
+        deliveryTime_ms: Date.now() - startTime,
+      };
+    }
+
     return {
-      emailId: `email_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      deliveryId: `delivery_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      method: 'EMAIL',
+      recipient,
       status: 'SENT',
+      subject,
       deliveryTime_ms: Date.now() - startTime,
     };
-  }
-
-  private formatReceiptContent(transactionData: any): string {
-    const lines = [
-      '╔════════════════════════════════════╗',
-      `║  ${transactionData.merchantName.padEnd(32)}  ║`,
-      `║  ${transactionData.merchantAddress.substring(0, 32).padEnd(32)}  ║`,
-      '╠════════════════════════════════════╣',
-      `║ Date/Time: ${new Date().toLocaleString('en-NG').padEnd(21)}║`,
-      `║ Ref: ${transactionData.transactionId.substring(0, 27).padEnd(28)}║`,
-      '╠════════════════════════════════════╣',
-      `║ Amount: ₦${transactionData.amount
-        .toFixed(2)
-        .padStart(26)}  ║`,
-      `║ Method: ${transactionData.paymentMethod.padEnd(26)}  ║`,
-      transactionData.cardLast4
-        ? `║ Card: ****${transactionData.cardLast4.padEnd(22)}  ║`
-        : '',
-      transactionData.customerName
-        ? `║ Name: ${transactionData.customerName.padEnd(27)}  ║`
-        : '',
-      '╠════════════════════════════════════╣',
-      '║ Thank you for your purchase!       ║',
-      '║ www.example.com                    ║',
-      '╚════════════════════════════════════╝',
-    ];
-
-    return lines.filter((line) => line.length > 0).join('\n');
   }
 
   private getRandomLatency(min: number, max: number): number {
