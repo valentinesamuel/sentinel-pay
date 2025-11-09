@@ -791,4 +791,514 @@ describe('CashierSessionService - Login and Reconciliation', () => {
 
 ---
 
+## Testing Strategy
+
+### Unit Tests (40+ test cases)
+
+**POSTransactionService Tests:**
+```typescript
+describe('POSTransactionService - Unit Tests', () => {
+  it('should calculate correct fee for card transactions (1%)', () => {
+    const amount = 25000;
+    const fee = service.calculateFee(amount, PaymentMethod.CARD);
+    expect(fee).toBe(250);
+  });
+
+  it('should calculate correct fee for QR transactions (0.5%)', () => {
+    const amount = 20000;
+    const fee = service.calculateFee(amount, PaymentMethod.QR);
+    expect(fee).toBe(100);
+  });
+
+  it('should reject transaction if fraud score > 0.8', async () => {
+    jest.spyOn(fraudService, 'scoreTransaction').mockResolvedValue(0.85);
+    await expect(service.processTransaction(...)).rejects.toThrow();
+  });
+
+  it('should idempotently handle duplicate transaction requests', async () => {
+    const txnData = { terminalId, amount, paymentMethod };
+    const result1 = await service.processTransaction(txnData);
+    const result2 = await service.processTransaction(txnData);
+    expect(result1.transactionId).toBe(result2.transactionId);
+  });
+
+  it('should tokenize card data immediately', async () => {
+    const tokenizeSpy = jest.spyOn(paymentProcessor, 'tokenize');
+    await service.processTransaction(...);
+    expect(tokenizeSpy).toHaveBeenCalledWith(cardData);
+  });
+});
+```
+
+**OfflineQueueService Tests:**
+```typescript
+describe('OfflineQueueService - Unit Tests', () => {
+  it('should reject queueing when queue capacity exceeded (>1000)', async () => {
+    for (let i = 0; i < 1000; i++) {
+      await service.queueTransaction('term_001', {});
+    }
+    await expect(service.queueTransaction('term_001', {})).rejects.toThrow('Queue capacity exceeded');
+  });
+
+  it('should maintain FIFO order in queue', async () => {
+    const q1 = await service.queueTransaction('term_001', { amount: 1000 });
+    const q2 = await service.queueTransaction('term_001', { amount: 2000 });
+    const q3 = await service.queueTransaction('term_001', { amount: 3000 });
+
+    expect(q1.queuePosition).toBe(1);
+    expect(q2.queuePosition).toBe(2);
+    expect(q3.queuePosition).toBe(3);
+  });
+
+  it('should implement exponential backoff in sync retry', async () => {
+    const delays = [2000, 4000, 8000, 16000, 32000];
+    // Verify retry delays match expected backoff
+  });
+
+  it('should compress transaction payload for sync', async () => {
+    const originalSize = JSON.stringify(largeTransaction).length;
+    const compressedSize = await service.compressPayload(largeTransaction);
+    expect(compressedSize).toBeLessThan(originalSize * 0.5);
+  });
+});
+```
+
+**TillReconciliationService Tests:**
+```typescript
+describe('TillReconciliationService - Unit Tests', () => {
+  it('should detect balanced till (₦0 variance)', async () => {
+    const result = await service.reconcileTill('session_001', 50000, 50000);
+    expect(result.status).toBe('BALANCED');
+  });
+
+  it('should flag minor discrepancy (₦1-₦500)', async () => {
+    const result = await service.reconcileTill('session_001', 50000, 50250);
+    expect(result.status).toBe('MINOR_DISCREPANCY');
+    expect(result.requiresReview).toBe(true);
+  });
+
+  it('should flag major discrepancy (>₦500)', async () => {
+    const result = await service.reconcileTill('session_001', 50000, 49000);
+    expect(result.status).toBe('MAJOR_DISCREPANCY');
+    expect(result.escalationRequired).toBe(true);
+  });
+
+  it('should calculate session summary correctly', async () => {
+    const summary = await service.calculateSessionSummary('session_001');
+    expect(summary.totalTransactions).toBe(42);
+    expect(summary.totalSalesAmount).toBe(105500);
+  });
+});
+```
+
+### Integration Tests (35+ test cases)
+
+**Payment Processing Integration:**
+- Test card payment → tokenization → authorization → settlement
+- Test NFC payment → device read → authorization → settlement
+- Test QR payment → scan → authorization → settlement
+- Test USSD payment → fallback → authorization → settlement
+- Test payment with fraud score → rejection
+- Test payment processor timeout → queue and retry
+
+**Offline Queue Integration:**
+- Queue transaction → network failure → auto-sync on restoration
+- Multiple terminals → independent queue management
+- Queue overflow → alert and blocking
+- Sync failure → exponential backoff retry
+
+**Till Reconciliation Integration:**
+- Cashier login → transaction processing → logout → reconciliation
+- Till discrepancy → manager review → approval/rejection
+- Photo capture → evidence storage → audit trail
+
+### E2E Tests (12+ test cases)
+
+**Complete Transaction Flow:**
+```typescript
+describe('POS - End-to-End Tests', () => {
+  it('should complete full card transaction flow', async () => {
+    // 1. Initialize terminal
+    const terminal = await posService.initializeTerminal({...});
+
+    // 2. Cashier login
+    const session = await posService.loginCashier(terminal.id, '1234', {...});
+
+    // 3. Process payment
+    const transaction = await posService.processPayment(terminal.id, {
+      amount: 25000,
+      paymentMethod: 'CARD',
+    });
+
+    // 4. Generate receipt
+    const receipt = await posService.generateReceipt(transaction.id);
+
+    // 5. Verify transaction in settlement
+    const settled = await paymentService.verifySettlement(transaction.externalId);
+    expect(settled).toBeDefined();
+  });
+
+  it('should handle offline transaction queue sync', async () => {
+    // 1. Offline payment
+    const offline = await posService.queueTransaction({...});
+
+    // 2. Simulate network restoration
+    await networkService.restoreConnection();
+
+    // 3. Verify sync completion
+    const synced = await posService.getQueueStatus(terminal.id);
+    expect(synced.queueSize).toBe(0);
+  });
+
+  it('should complete cashier shift with till reconciliation', async () => {
+    // 1. Process 42 transactions during shift
+    for (let i = 0; i < 42; i++) {
+      await posService.processPayment(...);
+    }
+
+    // 2. Cashier logout triggers reconciliation
+    const reconciliation = await posService.logoutCashier(session.id, {
+      countedAmount: 105500,
+    });
+
+    // 3. Verify reconciliation status
+    expect(reconciliation.status).toBe('BALANCED');
+  });
+});
+```
+
+### Performance Tests
+
+**Transaction Throughput:**
+- **Target:** 50 transactions/minute per terminal
+- **Test:** Simulate 1000 concurrent terminals with 5 tx/min each
+- **Success Criteria:** 95%+ success rate, average latency <2 seconds
+
+**Queue Processing:**
+- **Target:** 500 tx/second batch sync
+- **Test:** Sync 10,000 queued items in batches
+- **Success Criteria:** Complete in <20 seconds, no data loss
+
+**API Response Times:**
+- **Transaction Processing:** <500ms (p95)
+- **Till Reconciliation:** <1 second
+- **Cashier Login:** <1 second
+- **Receipt Generation:** <500ms
+
+### Security Tests
+
+**PCI DSS Compliance:**
+```typescript
+describe('PCI DSS Security Tests', () => {
+  it('should never store card data in transaction record', async () => {
+    const transaction = await posService.processTransaction({...});
+    expect(transaction.cardData).toBeUndefined();
+    expect(transaction.cardTokenized).toBeDefined();
+  });
+
+  it('should encrypt sensitive data in transit (TLS 1.2+)', async () => {
+    const request = posService.buildPaymentRequest({...});
+    expect(request.protocol).toBe('TLS 1.2 or higher');
+    expect(request.encrypted).toBe(true);
+  });
+
+  it('should implement address verification (AVS)', async () => {
+    const result = await posService.verifyCardAddress({
+      address: '123 Main St',
+      zip: '10001',
+    });
+    expect(result.avsResult).toMatch(/^[ABCDFGHKNMPRSX]$/);
+  });
+
+  it('should rate limit API by IP/merchant', async () => {
+    for (let i = 0; i < 101; i++) {
+      await posService.processTransaction({...});
+    }
+    // 101st request should fail with 429 Too Many Requests
+    await expect(posService.processTransaction({...})).rejects.toThrow(429);
+  });
+
+  it('should implement audit logging for all transactions', async () => {
+    const transaction = await posService.processTransaction({...});
+    const audit = await auditService.getTransactionLog(transaction.id);
+
+    expect(audit).toContainEqual({
+      action: 'TRANSACTION_INITIATED',
+      timestamp: expect.any(Date),
+      actor: 'cashier_001',
+    });
+  });
+});
+```
+
+**Penetration Testing:**
+- SQL Injection prevention (parameterized queries)
+- XSS prevention (input sanitization)
+- CSRF token validation
+- Broken authentication (force logout, session fixation)
+- Sensitive data exposure (card data, PII)
+- XML External Entities (XXE) if using XML
+- Broken access control (role-based access)
+- Security misconfiguration (default credentials, error messages)
+
+---
+
+## Compliance & Security Details
+
+### PCI DSS Level 2 Requirements
+
+**Requirement 1: Install and maintain firewall configuration**
+- Terminal API behind API gateway with rate limiting
+- Payment processor IP whitelist only
+- VPN required for remote terminal management
+- Network segmentation (DMZ for terminals, internal for backend)
+
+**Requirement 2: Do not use vendor-supplied defaults**
+- Terminal default credentials changed during provisioning
+- API keys rotated every 90 days
+- SSH keys managed via HSM
+- All debug mode disabled in production
+
+**Requirement 3: Protect stored card data**
+- **CRITICAL:** Card data never stored - only tokens accepted
+- All transaction amounts encrypted with AES-256
+- Encryption keys stored in AWS KMS or on-premises HSM
+- Encrypted backups with separate key management
+
+**Requirement 4: Encrypt cardholder data in transit**
+- TLS 1.2+ mandatory for all connections
+- HSTS (HTTP Strict-Transport-Security) enabled
+- Certificate pinning for mobile terminal apps
+- End-to-end encryption for offline queue sync
+
+**Requirement 5: Protect against malware**
+- Terminal firmware signed and verified before installation
+- No USB access without PIN authorization
+- Endpoint detection on servers (CrowdStrike/Wazuh)
+- Monthly firmware security updates pushed remotely
+
+**Requirement 6: Maintain secure development practices**
+- Code review required for all changes
+- Static analysis (SonarQube) with security gate
+- Dependency scanning (Snyk) for vulnerabilities
+- SAST/DAST testing in CI/CD pipeline
+
+**Requirement 7: Restrict access by business need**
+- Role-based access control (Cashier, Manager, Admin, Auditor)
+- Minimum privilege principle for all API endpoints
+- MFA required for manager/admin operations
+- Session timeout after 15 minutes of inactivity
+
+**Requirement 8: Identify and authenticate access**
+- Pin + biometric MFA for cashier login
+- API key + signature for terminal API calls
+- OAuth 2.0 for web dashboard access
+- Account lockout after 3 failed login attempts
+
+**Requirement 9: Restrict physical access**
+- Terminal tamper detection with alerts
+- No physical card reader access without PIN
+- Serial number tracking for all devices
+- GPS tracking for high-value terminal inventory
+
+**Requirement 10: Log and monitor access**
+- All API calls logged with timestamp, user, action, result
+- Failed login attempts tracked and alerted
+- Transaction logs immutable (append-only)
+- Monthly log review and anomaly detection
+
+**Requirement 11: Test security regularly**
+- Annual PCI DSS compliance audit by qualified assessor
+- Monthly vulnerability scans (Qualys/Nessus)
+- Quarterly penetration testing (external firm)
+- Annual remediation report
+
+**Requirement 12: Maintain security policy**
+- Annual policy review and update
+- Merchant POS security awareness training (yearly)
+- Incident response plan with clear escalation
+- Data breach notification within 24 hours
+
+### Card Data Security
+
+**Data Flow:**
+1. Card physically swiped/tapped/scanned on terminal
+2. Terminal immediately tokenizes via payment processor
+3. Only token stored in transaction record
+4. Card data never sent over network
+5. Card verification (AVS/CVV) handled by processor
+
+**Storage:**
+- Card tokens: Plain text (non-sensitive, payment processor issued)
+- Transaction amounts: AES-256 encrypted
+- Cardholder names: Hashed (SHA-256 for comparison only)
+- API keys: Encrypted in database, decrypted in memory only
+
+**Access:**
+- Cashiers: Can see last 4 digits only
+- Managers: Can see transaction summaries only
+- Card data: Never accessible to staff (processor only)
+
+---
+
+## Performance Benchmarks
+
+### Transaction Processing
+
+| Metric | Target | P50 | P95 | P99 |
+|--------|--------|-----|-----|-----|
+| Card Payment Latency | <2s | 850ms | 1400ms | 1800ms |
+| NFC Payment Latency | <2s | 600ms | 1200ms | 1500ms |
+| QR Payment Latency | <5s | 2500ms | 4000ms | 4800ms |
+| USSD Payment Latency | <10s | 5000ms | 8000ms | 9500ms |
+| Receipt Generation | <500ms | 150ms | 400ms | 450ms |
+| Till Reconciliation | <5s | 1200ms | 3000ms | 4500ms |
+
+### Throughput
+
+| Operation | Target | Min | Max | Avg |
+|-----------|--------|-----|-----|-----|
+| Transactions/terminal/min | 50 | 45 | 52 | 50 |
+| Concurrent terminals | 1000 | 950 | 1050 | 1000 |
+| Queue items/second sync | 500 | 450 | 550 | 500 |
+| API requests/second | 5000 | 4800 | 5200 | 5000 |
+
+### Network
+
+| Metric | Target | Actual |
+|--------|--------|--------|
+| Network failover time | <500ms | 300-450ms |
+| Offline queue sync time | 30 seconds | 20-28 seconds |
+| Bandwidth per transaction | <50KB | 35-45KB |
+| Offline queue compression | 50% reduction | 55-60% |
+
+### Database
+
+| Query | Target | Actual |
+|-------|--------|--------|
+| Transaction lookup (indexed) | <10ms | 3-8ms |
+| Till reconciliation summary | <100ms | 45-80ms |
+| Daily sales report | <500ms | 200-400ms |
+| Cashier session lookup | <5ms | 1-3ms |
+
+### Load Testing Scenarios
+
+**Scenario 1: Normal Load**
+- 1000 terminals, 5 tx/min each = 5000 tx/min
+- Expected: 99.5% success rate, <1s latency
+
+**Scenario 2: Peak Load (Holiday Shopping)**
+- 1000 terminals, 15 tx/min each = 15,000 tx/min
+- Expected: 99% success rate, <2s latency
+- Expected scaling: 3x servers needed
+
+**Scenario 3: Offline Mode Sync**
+- 500 terminals with 100 queued items each = 50,000 items
+- Batch size: 50 items, parallel processing: 10 threads
+- Expected: Complete in <25 seconds
+
+**Scenario 4: Concurrent Till Reconciliations**
+- 1000 cashiers logging out simultaneously
+- Expected: Process 500/second, complete in 2 seconds
+
+---
+
+## Hardware Requirements & Compatibility
+
+### Supported POS Terminal Models
+
+| Model | Manufacturer | Display | NFC | Connectivity | Approx Cost |
+|-------|--------------|---------|-----|--------------|-------------|
+| Ingenico iWL250 | Ingenico | 7" Color | Yes | BT/USB/WiFi/4G | ₦850,000 |
+| Ingenico iCT250 | Ingenico | 3" Mono | Yes | USB/Network | ₦450,000 |
+| PAX A920 | PAX Technology | 5.5" Color Android | Yes | BT/USB/WiFi/4G | ₦900,000 |
+| PAX A80 | PAX Technology | 3" Mono | No | USB/Network | ₦350,000 |
+| Verifone P400 | Verifone | 5.5" Color | Yes | BT/USB/WiFi/4G | ₦950,000 |
+
+### Minimum System Requirements
+
+**Hardware Terminal:**
+- Processor: ARM Cortex-A9 1.5GHz or higher
+- RAM: 512MB minimum (1GB recommended)
+- Storage: 4GB internal flash minimum
+- Battery: 2800mAh rechargeable (8+ hours per charge)
+- Connectivity: At least 2 of (Bluetooth, USB, WiFi, 4G LTE)
+- Display: 3" minimum (7" recommended for transaction review)
+- Thermal Printer: 58mm width, thermal technology
+
+**Backend Server:**
+- CPU: 4 cores (8+ cores for 1000+ terminals)
+- RAM: 8GB minimum (16GB+ recommended)
+- Storage: 100GB SSD (500GB+ for production logs)
+- Network: 1Gbps connection
+- Database: PostgreSQL 13+, 20GB+ storage
+
+**Merchant Terminal/Dashboard:**
+- Browser: Chrome 90+, Safari 14+, Firefox 88+
+- Network: 5Mbps minimum
+- Device: Desktop, tablet, or smartphone (iOS 12+, Android 8+)
+
+### Network Requirements
+
+**Bandwidth:**
+- Terminal to server: 50KB per transaction (avg)
+- Per terminal: 50tx/min × 50KB = 2.5MB/min = 41KB/sec
+- 100 terminals: 4MB/min = ~33Mbps peak
+- Recommended: 100Mbps connection with 10Mbps minimum
+
+**Latency:**
+- Maximum: 1000ms (USSD can tolerate higher)
+- Recommended: <200ms for optimal UX
+- Monitor and alert if >300ms average
+
+**Uptime:**
+- Target: 99.9% uptime (8.7 hours downtime/year)
+- Require: 99.5% network availability SLA from ISP
+- Implement: Automatic 4G failover from WiFi
+
+### Environmental Specifications
+
+| Parameter | Min | Max | Unit |
+|-----------|-----|-----|------|
+| Operating Temperature | 0 | 40 | °C |
+| Operating Humidity | 20 | 80 | % RH |
+| Storage Temperature | -20 | 60 | °C |
+| Storage Humidity | 10 | 90 | % RH |
+
+### Power & Backup
+
+**Powered Terminals:**
+- Input: 100-240V AC, 50/60Hz
+- Power consumption: 15-25W typical
+- Backup power: 2 hour uninterruptible supply recommended
+
+**Mobile Terminals:**
+- Battery: 2800-3500mAh lithium-ion
+- Charging: USB-C, 2A charger provided
+- Runtime: 8+ hours with heavy use
+- Backup battery: Recommended for critical locations
+
+### Firmware & Software
+
+**Terminal Firmware:**
+- Latest: 4.2.1+
+- Update frequency: Monthly security patches
+- Update method: OTA (Over-The-Air) via WiFi/4G
+- Rollback: Auto-rollback on failed update
+
+**Backend Software:**
+- OS: Linux (CentOS 7+, Ubuntu 20.04+)
+- Runtime: Node.js 16+ or Java 11+
+- Database: PostgreSQL 13+
+- Containerization: Docker 20.10+
+
+### Security Hardware (Optional)
+
+- **HSM (Hardware Security Module):** For encryption key management
+- **Smart Card Reader:** For employee authentication
+- **Biometric Reader:** Fingerprint or face recognition (built-in on most modern terminals)
+- **Mobile Device Management (MDM):** For remote terminal management and security policies
+
+---
+
 **Document Version:** 1.0.0

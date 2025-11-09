@@ -1455,6 +1455,383 @@ Processed in: ${reconciliation.reconciliationTime_ms}ms
 
 ---
 
+## 8. Real-Time Monitoring & Alerting Mock
+
+Simulates terminal health monitoring, transaction anomaly detection, and alert generation.
+
+```typescript
+import { Injectable } from '@nestjs/common';
+
+interface MonitoringAlert {
+  alertId: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  type: string;
+  message: string;
+  terminalId?: string;
+  timestamp: Date;
+  data: any;
+}
+
+@Injectable()
+export class MonitoringAndAlertingMock {
+  private readonly HEARTBEAT_TIMEOUT = 90000; // 90 seconds
+  private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
+  private readonly TRANSACTION_ANOMALY_THRESHOLD = 0.2; // 20% deviation from normal
+  private readonly QUEUE_CAPACITY_WARNING_THRESHOLD = 0.8; // 80% full
+
+  private terminalHealthMetrics: Map<string, any> = new Map();
+  private transactionPatterns: Map<string, any> = new Map();
+  private alerts: MonitoringAlert[] = [];
+  private readonly ALERT_RETENTION_TIME = 86400000; // 24 hours
+
+  async monitorTerminalHealth(terminalId: string): Promise<{
+    healthScore: number;
+    status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+    lastHeartbeat: Date;
+    connectionStrength: number;
+    uptime: number;
+    alerts: MonitoringAlert[];
+  }> {
+    const metrics = this.terminalHealthMetrics.get(terminalId) || {
+      lastHeartbeat: Date.now(),
+      connectionStrength: 85,
+      uptime: 100,
+      errorCount: 0,
+      warningCount: 0,
+      successCount: 1000,
+    };
+
+    const timeSinceHeartbeat = Date.now() - metrics.lastHeartbeat;
+    let status: 'HEALTHY' | 'DEGRADED' | 'OFFLINE';
+    let healthScore: number;
+
+    if (timeSinceHeartbeat > this.HEARTBEAT_TIMEOUT) {
+      status = 'OFFLINE';
+      healthScore = 0;
+      this.createAlert(
+        terminalId,
+        'CRITICAL',
+        'HEARTBEAT_MISSED',
+        `Terminal missed ${Math.ceil(timeSinceHeartbeat / this.HEARTBEAT_INTERVAL)} consecutive heartbeats`,
+        { timeSinceHeartbeat },
+      );
+    } else if (metrics.errorCount > 50) {
+      status = 'DEGRADED';
+      healthScore = Math.max(20, 100 - metrics.errorCount);
+      this.createAlert(
+        terminalId,
+        'HIGH',
+        'HIGH_ERROR_RATE',
+        `Terminal error count: ${metrics.errorCount}`,
+        { errorCount: metrics.errorCount },
+      );
+    } else {
+      status = 'HEALTHY';
+      healthScore = Math.min(
+        100,
+        90 + Math.random() * 10 - metrics.errorCount * 0.1,
+      );
+    }
+
+    const terminalAlerts = this.alerts.filter(
+      (a) => a.terminalId === terminalId,
+    );
+
+    return {
+      healthScore: Math.round(healthScore),
+      status,
+      lastHeartbeat: new Date(metrics.lastHeartbeat),
+      connectionStrength: metrics.connectionStrength,
+      uptime: metrics.uptime,
+      alerts: terminalAlerts,
+    };
+  }
+
+  async detectTransactionAnomalies(
+    terminalId: string,
+    newTransaction: {
+      amount: number;
+      paymentMethod: string;
+      timestamp: Date;
+    },
+  ): Promise<{
+    anomalyScore: number;
+    isAnomaly: boolean;
+    pattern: string;
+    expectedRange: { min: number; max: number };
+    risk: string;
+  }> {
+    const pattern = this.transactionPatterns.get(terminalId) || {
+      avgAmount: 50000,
+      stdDev: 20000,
+      txPerHour: 50,
+      lastTxTime: Date.now(),
+    };
+
+    // Check amount anomaly
+    const zScore = Math.abs(
+      (newTransaction.amount - pattern.avgAmount) / (pattern.stdDev || 10000),
+    );
+    const amountAnomaly = zScore > 3; // 3 standard deviations
+
+    // Check frequency anomaly
+    const timeSinceLastTx = Date.now() - pattern.lastTxTime;
+    const expectedInterval = (3600000 / pattern.txPerHour) * 1.5; // 1.5x expected interval
+    const frequencyAnomaly = timeSinceLastTx < expectedInterval / 3; // Too frequent
+
+    const isAnomaly = amountAnomaly || frequencyAnomaly;
+
+    if (isAnomaly) {
+      const riskLevel =
+        zScore > 5 ? 'CRITICAL' : zScore > 3.5 ? 'HIGH' : 'MEDIUM';
+      this.createAlert(
+        terminalId,
+        riskLevel,
+        'TRANSACTION_ANOMALY',
+        `Unusual transaction: ₦${newTransaction.amount} (Z-score: ${zScore.toFixed(2)})`,
+        {
+          amount: newTransaction.amount,
+          zScore,
+          paymentMethod: newTransaction.paymentMethod,
+        },
+      );
+    }
+
+    // Update pattern
+    pattern.lastTxTime = Date.now();
+    this.transactionPatterns.set(terminalId, pattern);
+
+    return {
+      anomalyScore: Math.min(1, zScore / 5),
+      isAnomaly,
+      pattern: amountAnomaly ? 'UNUSUAL_AMOUNT' : 'UNUSUAL_FREQUENCY',
+      expectedRange: {
+        min: Math.max(0, pattern.avgAmount - pattern.stdDev * 3),
+        max: pattern.avgAmount + pattern.stdDev * 3,
+      },
+      risk:
+        zScore > 5
+          ? 'CRITICAL'
+          : zScore > 3.5
+            ? 'HIGH'
+            : zScore > 2
+              ? 'MEDIUM'
+              : 'LOW',
+    };
+  }
+
+  async monitorOfflineQueueHealth(terminalId: string, queueSize: number): Promise<{
+    queueHealthScore: number;
+    status: 'NORMAL' | 'WARNING' | 'CRITICAL';
+    utilizationPercent: number;
+    estimatedSyncTime: number;
+    alerts: MonitoringAlert[];
+  }> {
+    const maxCapacity = 1000;
+    const utilizationPercent = (queueSize / maxCapacity) * 100;
+
+    let status: 'NORMAL' | 'WARNING' | 'CRITICAL';
+    let healthScore: number;
+
+    if (queueSize >= maxCapacity) {
+      status = 'CRITICAL';
+      healthScore = 0;
+      this.createAlert(
+        terminalId,
+        'CRITICAL',
+        'QUEUE_CAPACITY_FULL',
+        `Offline queue full (${queueSize}/${maxCapacity} items)`,
+        { queueSize, maxCapacity },
+      );
+    } else if (utilizationPercent >= this.QUEUE_CAPACITY_WARNING_THRESHOLD * 100) {
+      status = 'WARNING';
+      healthScore = 50;
+      this.createAlert(
+        terminalId,
+        'HIGH',
+        'QUEUE_APPROACHING_CAPACITY',
+        `Offline queue at ${utilizationPercent.toFixed(0)}% capacity`,
+        { queueSize, utilizationPercent },
+      );
+    } else {
+      status = 'NORMAL';
+      healthScore = 100;
+    }
+
+    const estimatedSyncTime = Math.ceil((queueSize / 50) * 5000); // 5 seconds per 50-item batch
+
+    const terminalAlerts = this.alerts.filter(
+      (a) => a.terminalId === terminalId,
+    );
+
+    return {
+      queueHealthScore: healthScore,
+      status,
+      utilizationPercent,
+      estimatedSyncTime,
+      alerts: terminalAlerts,
+    };
+  }
+
+  async monitorPaymentProcessorHealth(): Promise<{
+    processorStatus: 'AVAILABLE' | 'DEGRADED' | 'UNAVAILABLE';
+    responseLatency_ms: number;
+    successRate: number;
+    lastCheckTime: Date;
+    alerts: MonitoringAlert[];
+  }> {
+    // Simulate processor health check
+    const isHealthy = Math.random() > 0.05; // 95% healthy
+    const responseLatency = isHealthy
+      ? Math.random() * 200 + 100 // 100-300ms
+      : Math.random() * 5000 + 2000; // 2-7s if degraded
+    const successRate = isHealthy ? 0.99 : 0.85;
+
+    let status: 'AVAILABLE' | 'DEGRADED' | 'UNAVAILABLE';
+    if (responseLatency > 3000 || successRate < 0.8) {
+      status = 'DEGRADED';
+      this.createAlert(
+        'SYSTEM',
+        'HIGH',
+        'PAYMENT_PROCESSOR_DEGRADED',
+        `Processor latency: ${responseLatency.toFixed(0)}ms, success rate: ${(successRate * 100).toFixed(1)}%`,
+        { responseLatency, successRate },
+      );
+    } else if (responseLatency > 1000 || successRate < 0.9) {
+      status = 'AVAILABLE'; // Acceptable
+    } else {
+      status = 'AVAILABLE';
+    }
+
+    const systemAlerts = this.alerts.filter((a) => a.terminalId === 'SYSTEM');
+
+    return {
+      processorStatus: status,
+      responseLatency_ms: responseLatency,
+      successRate,
+      lastCheckTime: new Date(),
+      alerts: systemAlerts,
+    };
+  }
+
+  async monitorCashierActivityAnomalies(cashierId: string, sessionId: string): Promise<{
+    anomalyScore: number;
+    suspiciousPatterns: string[];
+    riskLevel: string;
+    recommendations: string[];
+  }> {
+    const anomalies: string[] = [];
+    let riskLevel = 'LOW';
+
+    // Simulate various anomalies
+    const suspiciousPatterns = [
+      'Rapid_succession_refunds',
+      'Unusual_transaction_amounts',
+      'Late_night_activity',
+      'Void_transactions',
+      'Manager_overrides',
+    ];
+
+    // Check for high-risk patterns
+    if (Math.random() > 0.95) {
+      anomalies.push(suspiciousPatterns[0]); // Rapid refunds
+      riskLevel = 'MEDIUM';
+    }
+
+    if (Math.random() > 0.92) {
+      anomalies.push(suspiciousPatterns[2]); // Late night activity
+      riskLevel = 'HIGH';
+    }
+
+    const anomalyScore = anomalies.length * 0.25; // 0.25 per anomaly
+
+    const recommendations = [
+      ...(anomalies.includes('Rapid_succession_refunds')
+        ? ['Review refund activity for day']
+        : []),
+      ...(anomalies.includes('Late_night_activity')
+        ? ['Schedule supervisor check-in']
+        : []),
+      ...(riskLevel === 'HIGH' ? ['Escalate to manager for review'] : []),
+    ];
+
+    if (anomalies.length > 0) {
+      this.createAlert(
+        'CASHIER',
+        riskLevel === 'HIGH' ? 'HIGH' : 'MEDIUM',
+        'CASHIER_ACTIVITY_ANOMALY',
+        `Cashier ${cashierId} showing suspicious patterns: ${anomalies.join(', ')}`,
+        { cashierId, sessionId, anomalies, riskLevel },
+      );
+    }
+
+    return {
+      anomalyScore: Math.min(1, anomalyScore),
+      suspiciousPatterns: anomalies,
+      riskLevel,
+      recommendations,
+    };
+  }
+
+  async retrieveAlerts(
+    filters?: {
+      terminalId?: string;
+      severity?: string;
+      limit?: number;
+    },
+  ): Promise<MonitoringAlert[]> {
+    this.cleanupOldAlerts();
+
+    let filtered = [...this.alerts];
+
+    if (filters?.terminalId) {
+      filtered = filtered.filter((a) => a.terminalId === filters.terminalId);
+    }
+
+    if (filters?.severity) {
+      filtered = filtered.filter((a) => a.severity === filters.severity);
+    }
+
+    const limit = filters?.limit || 100;
+    return filtered.slice(-limit).reverse(); // Most recent first
+  }
+
+  private createAlert(
+    terminalId: string | undefined,
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    type: string,
+    message: string,
+    data: any,
+  ): void {
+    const alert: MonitoringAlert = {
+      alertId: `alert_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      severity,
+      type,
+      message,
+      terminalId,
+      timestamp: new Date(),
+      data,
+    };
+
+    this.alerts.push(alert);
+
+    // Keep only recent alerts
+    if (this.alerts.length > 10000) {
+      this.alerts = this.alerts.slice(-5000);
+    }
+  }
+
+  private cleanupOldAlerts(): void {
+    const cutoffTime = Date.now() - this.ALERT_RETENTION_TIME;
+    this.alerts = this.alerts.filter(
+      (a) => a.timestamp.getTime() > cutoffTime,
+    );
+  }
+}
+```
+
+---
+
 ## Mock Services Integration Test
 
 ```typescript
