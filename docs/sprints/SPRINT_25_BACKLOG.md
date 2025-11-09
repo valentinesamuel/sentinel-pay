@@ -58,4 +58,59 @@
 
 ---
 
-**Document Version:** 1.0.0
+## FEATURE-25.4: POS Receipt Integration (NEW)
+
+### 📘 User Story: US-25.4.1 - Display POS Receipt Data in Dashboard (6 SP)
+
+**As a merchant, I want to view POS receipt details and transaction history from my dashboard**
+
+#### Acceptance Criteria
+
+**Receipt Data Display:**
+- [ ] **AC1:** Display recent receipts (last 30 days) in merchant dashboard
+- [ ] **AC2:** Show receipt number, transaction amount, payment method, timestamp
+- [ ] **AC3:** Link to detailed receipt data via Sprint 40 Receipt Data API
+- [ ] **AC4:** Display receipt delivery status (SMS sent, Email sent, pending)
+- [ ] **AC5:** Filter receipts by date range, payment method, cashier
+- [ ] **AC6:** Search receipts by transaction ID or customer identifier
+- [ ] **AC7:** Download receipt data as CSV export
+- [ ] **AC8:** View receipt QR code for customer verification
+
+**Transaction Analytics:**
+- [ ] **AC9:** Show transaction volume by payment method (Card, NFC, QR, USSD)
+- [ ] **AC10:** Display daily transaction trends with receipt counts
+- [ ] **AC11:** Show average receipt amount and transaction size distribution
+- [ ] **AC12:** Identify top cashiers by transaction volume
+
+**Integration with Sprint 40:**
+- [ ] **AC13:** Fetch receipt data from Sprint 40 `GET /api/v1/pos/transactions/{id}/receipt-data` endpoint
+- [ ] **AC14:** Display merchant info from receipt data (name, address, tax ID)
+- [ ] **AC15:** Show itemized breakdown from receipt data
+- [ ] **AC16:** Display terminal information and cashier details from receipts
+- [ ] **AC17:** Reconcile receipt count with transaction count (error detection)
+
+---
+
+## FEATURE-25.5: POS Terminal Health & Monitoring (NEW)
+
+### 📘 User Story: US-25.5.1 - Monitor POS Terminal Status (4 SP)
+
+**As a merchant, I want to monitor the health and status of my POS terminals**
+
+#### Acceptance Criteria
+
+- [ ] **AC1:** Display terminal online/offline status in dashboard
+- [ ] **AC2:** Show last heartbeat timestamp for each terminal
+- [ ] **AC3:** Display receipt count per terminal (daily/weekly)
+- [ ] **AC4:** Alert when terminal is offline for > 30 minutes
+- [ ] **AC5:** Show terminal queue health (offline transactions pending sync)
+- [ ] **AC6:** Display terminal error rates and failure analysis
+
+---
+
+**Document Version:** 1.1.0
+**Last Updated:** 2024-11-09
+**Integration Notes:**
+- Sprint 25 now integrates with Sprint 40 POS Receipt System for merchant-facing receipt analytics and terminal monitoring
+- Sprint 40 provides receipt data API that Sprint 25 dashboard consumes
+- Sprint 25 complements Sprint 40 by providing merchant-level visibility and analytics on receipt generation and delivery

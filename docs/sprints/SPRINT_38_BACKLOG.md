@@ -2167,3 +2167,31 @@ export class CashFlowService {
 4. **Cash Flow Forecasting:** Use 3-month historical average as initial approach, can be improved with seasonal adjustments in future
 5. **Privacy-First Design:** All personal finance data encrypted at rest, user consent required for cross-user benchmarking
 
+---
+
+## Sprint 40 Integration Notes
+
+### Optional: Merchant Accounting Integration
+
+Sprint 38 can optionally integrate with Sprint 40 POS Receipt System for merchants who use PFM for business accounting:
+
+**Use Case:** A merchant who is also a user can:
+1. Import POS receipt transactions into their personal finance view
+2. Categorize business expenses automatically using Sprint 38 categorization rules
+3. Track business income separately from personal income using Sprint 38 Income Tracking
+4. Generate business accounting reports using Sprint 38 insights and analytics
+
+**Integration Points:**
+- **Transaction Import:** Fetch transactions from Sprint 40 `GET /api/v1/pos/transactions/` endpoint
+- **Itemized Details:** Use receipt data from Sprint 40 to populate itemized business expenses
+- **Category Mapping:** Apply Sprint 38 category classification to POS transactions
+- **Income Tracking:** Record merchant settlement amounts as business income in Sprint 38
+- **Business Accounting:** Generate merchant accounting reports from Sprint 38 analytics
+
+**Implementation Notes:**
+- This is OPTIONAL and deferred to Phase 2 (post-MVP)
+- Requires merchant user context (user has associated merchant account)
+- Would be implemented as a new feature in Sprint 38 or future sprint
+- API integration would happen at transaction import time
+- No changes needed to Sprint 38 core features for Phase 1 MVP
+

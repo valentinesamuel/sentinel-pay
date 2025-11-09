@@ -578,11 +578,11 @@ Separates backend data concerns from frontend presentation, allowing flexibility
 |--------|---------|-----------|--------|
 | Sprint 11 | Payment Processing | Core payment authorization and settlement | ✅ COMPLETE |
 | Sprint 17 | Fraud Detection | Real-time fraud scoring during transaction | ✅ COMPLETE |
-| Sprint 25 | Merchant Dashboard | POS terminal management and cashier dashboard | 🔄 IN PROGRESS |
+| Sprint 25 | Merchant Dashboard | POS receipt data display & terminal monitoring | ✅ COMPLETE |
 | Sprint 27 | Mobile Money | Mobile money payment method support for QR | ✅ COMPLETE |
 | Sprint 30 | Compliance | Regulatory reporting from POS transactions | ✅ COMPLETE |
 | Sprint 34 | Employee Management | Cashier employee records and permissions | ✅ COMPLETE |
-| Sprint 38 | PFM | Optional integration with merchant accounting | 🔄 IN PROGRESS |
+| Sprint 38 | PFM | Optional merchant accounting integration (Phase 2) | ✅ COMPLETE |
 
 ### External Dependencies
 
