@@ -1,8 +1,10 @@
-# Ubiquitous Tribble - Advanced Fintech Payment Platform
+# Sentinel Pay - Security-First Payment Infrastructure
 
-> A comprehensive, production-grade backend payment processing platform designed for merchant onboarding, transaction processing, fraud detection, and recurring billing with enterprise-grade security and compliance.
+> Enterprise-grade payment processing platform with intelligent fraud detection, secure request signing, real-time settlement, and complete visibility. Built for merchants and payment platforms that demand security without compromising speed.
 
 **Status:** 🏗️ In Development | **Total Scope:** 480+ Story Points | **Documentation:** 15+ Comprehensive Sprints
+
+**Product Name:** Sentinel Pay | **Tagline:** "Security-First Payment Infrastructure"
 
 ---
 
@@ -24,18 +26,25 @@
 
 ## Overview
 
-**Ubiquitous Tribble** is an advanced fintech payment platform providing a complete backend solution for:
+**Sentinel Pay** is an enterprise-grade payment infrastructure platform providing a complete backend solution for secure payment processing:
 
-- 💳 **Payment Processing** - Card transactions, tokenization, recurring billing
-- 🏪 **Merchant Management** - Onboarding, KYC, settlement, analytics
-- 🛡️ **Fraud Detection** - Real-time risk scoring, behavioral analysis, ML-ready
-- 📱 **Utility Payments** - Airtime topup, bill payments, subscriptions
-- 🔄 **Recurring Billing** - Subscription management with intelligent retry logic
-- 💰 **Dispute Resolution** - Evidence collection, chargeback handling, investigation
-- 🔐 **Enterprise Security** - PCI-DSS compliance, encrypted storage, request signing
-- 📊 **Advanced Analytics** - Transaction analytics, merchant metrics, cohort analysis
+- 💳 **Payment Processing** - Card transactions, tokenization, recurring billing with sub-500ms latency
+- 🏪 **Merchant Management** - Onboarding, KYC verification, flexible settlement, analytics
+- 🛡️ **Fraud Detection** - Real-time intelligent scoring (<300ms), 10-factor risk analysis, behavioral profiling
+- 🔐 **Request Signing** - HMAC-SHA256 signatures, AES-256-GCM encryption, nonce validation
+- 📱 **Utility Payments** - Airtime topup, bill payments, subscriptions with retry intelligence
+- 🔄 **Recurring Billing** - Subscription management with exponential backoff, dunning workflows
+- 💰 **Dispute Resolution** - Evidence collection, investigation workflows, chargeback management
+- 📊 **Complete Visibility** - Real-time dashboards, detailed API logs, full audit trails
 
-**Target Markets:** Nigeria (₦), with extensibility for international expansion (USD, EUR, etc.)
+**Key Differentiators:**
+- ✅ Security-first architecture (not an afterthought)
+- ✅ Transparent operations (audit logs, clear APIs, no black boxes)
+- ✅ Real-time fraud intelligence (not just rules)
+- ✅ Developer-friendly (SDKs, docs, clear examples)
+- ✅ Flexible settlement (configurable schedules and methods)
+
+**Target Markets:** Nigeria (₦), with extensibility for international expansion (USD, EUR, GBP, etc.)
 
 **Architecture:** Distributed microservices on NestJS + TypeORM + PostgreSQL + Redis
 
