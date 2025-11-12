@@ -587,8 +587,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/valentinesamuel/ubiquitous-tribble.git
-cd ubiquitous-tribble
+git clone https://github.com/valentinesamuel/sentinel-pay.git
+cd sentinel-pay
 
 # Install dependencies
 npm install
@@ -616,7 +616,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_DB=ubiquitous_tribble
+POSTGRES_DB=sentinel_pay
 
 # Redis
 REDIS_URL=redis://localhost:6379
