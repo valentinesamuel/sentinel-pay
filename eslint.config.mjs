@@ -19,6 +19,15 @@ export default tseslint.config(
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+
+      // Warn about object spread that might bypass entity serialization
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'ReturnStatement > ObjectExpression > SpreadElement',
+          message: 'Avoid spreading entities in return statements. Return the entity instance directly to ensure proper serialization.',
+        },
+      ],
     },
   },
   {

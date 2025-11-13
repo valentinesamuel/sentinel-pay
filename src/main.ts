@@ -1,10 +1,11 @@
-import { ClassSerializerInterceptor, Logger } from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { ResponseInterceptor } from '@shared/interceptors/response.interceptor';
+import { EntityInstanceValidatorInterceptor } from '@shared/interceptors/entity-instance-validator.interceptor';
 import { CustomFieldValidationPipe } from '@shared/validations/custom.validation';
 
 import * as cookieParser from 'cookie-parser';
@@ -64,10 +65,19 @@ async function bootstrap() {
     app.get(DecryptCypherInterceptor),
     new ResponseInterceptor(),
     new ClassSerializerInterceptor(app.get(Reflector)),
+    new EntityInstanceValidatorInterceptor(), // Validates and strips internal IDs
   );
   app.useGlobalGuards(new ClientAuthorizationGuard(configService, app.get(Reflector), cryptoUtils));
   // Enable global validation pipe
-  app.useGlobalPipes(CustomFieldValidationPipe);
+  app.useGlobalPipes(
+    CustomFieldValidationPipe,
+    new ValidationPipe({
+      transform: true,
+      transformOptions: {
+        excludeExtraneousValues: false, // Keep all non-excluded fields
+      },
+    }),
+  );
 
   const swaggerOptions = new DocumentBuilder()
     .setTitle(`${PRODUCT_NAME} API Documentation`)

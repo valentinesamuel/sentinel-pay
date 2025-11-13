@@ -5,15 +5,23 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   Column,
+  Index,
+  Generated,
 } from 'typeorm';
 
 import { IsDateString, IsOptional } from 'class-validator';
-import { Exclude } from 'class-transformer';
+import { Exclude, Expose } from 'class-transformer';
 
 export abstract class BaseEntity extends TypeOrmBaseEntity {
   @Exclude({ toPlainOnly: true })
   @PrimaryGeneratedColumn({ type: 'integer' })
   id: number;
+
+  @Index({ unique: true })
+  @Generated('uuid')
+  @Column({ type: 'uuid', unique: true })
+  @Expose({ name: 'id' })
+  publicId: string;
 
   @CreateDateColumn({
     type: 'timestamp with time zone',

@@ -6,7 +6,8 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nchore: setup commitlint, prettier, and lint-staged\n\n- Configure lint-staged to run ESLint and Prettier on staged files\n- Update pre-commit hook to use lint-staged instead of formatting all files\n- Add ESLint flat config for ESLint v9\n- Fix linting errors in findAndPaginate.ts\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(pnpm commitlint:*)",
       "Bash(pnpm exec commitlint:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pnpm build:*)"
     ],
     "deny": [],
     "ask": []
