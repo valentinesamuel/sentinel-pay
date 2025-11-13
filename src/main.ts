@@ -12,19 +12,15 @@ import * as cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 
 import { AppModule } from './app.module';
-import { ClientAuthorizationGuard } from '@shared/guards/clientAuthorizationGuard.guard';
-import { CryptoUtil } from '@shared/utils/encryption/crypto.util';
-import { DecryptCypherInterceptor } from '@modules/customer/interceptors/decrypt-cypher.interceptor';
 
 async function bootstrap() {
   dotenv.config();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   const { port, swaggerApiRoot } = configService.get('common');
-  const cryptoUtils = app.get(CryptoUtil);
 
-  const PRODUCT_NAME = 'FCI CUstomer Service';
-  const PRODUCT_TAG = 'FCI Customer Service';
+  const PRODUCT_NAME = 'Sentinel Pay Core';
+  const PRODUCT_TAG = 'Sentinel Pay Core';
   const PRODUCT_VERSION = '0.0.1';
 
   // Determine the allowed origins
@@ -62,12 +58,11 @@ async function bootstrap() {
   app.enableCors(options);
   app.use(cookieParser());
   app.useGlobalInterceptors(
-    app.get(DecryptCypherInterceptor),
     new ResponseInterceptor(),
     new ClassSerializerInterceptor(app.get(Reflector)),
     new EntityInstanceValidatorInterceptor(), // Validates and strips internal IDs
   );
-  app.useGlobalGuards(new ClientAuthorizationGuard(configService, app.get(Reflector), cryptoUtils));
+  app.useGlobalGuards();
   // Enable global validation pipe
   app.useGlobalPipes(
     CustomFieldValidationPipe,
@@ -81,7 +76,7 @@ async function bootstrap() {
 
   const swaggerOptions = new DocumentBuilder()
     .setTitle(`${PRODUCT_NAME} API Documentation`)
-    .setDescription('List of all the APIs for Famous Customer Service API.')
+    .setDescription('API Endpoints for Sentinel Pay Core')
     .setVersion(PRODUCT_VERSION)
     .addTag(PRODUCT_TAG)
     .addBearerAuth()
@@ -90,9 +85,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerOptions);
   SwaggerModule.setup(swaggerApiRoot, app, document);
 
-  await app.listen(process.env.PORT || port);
+  await app.listen(port);
   Logger.log(
-    `${PRODUCT_NAME} running on port ${process.env.PORT || port}: visit http://localhost:${process.env.PORT || port}/${swaggerApiRoot}`,
+    `${PRODUCT_NAME} running on port ${port}: visit http://localhost:${port}/${swaggerApiRoot}`,
   );
 }
 

@@ -29,19 +29,19 @@ export class QueryDto<T> implements IQuery {
   @IsObject()
   order?: IOrder;
 
-  @ApiProperty({ required: false, type: 'object', description: 'Filter parameters as an object' })
+  @ApiProperty({ required: false, description: 'Filter parameters as an object' })
   @IsOptional()
   @Transform(({ value }) => convertQueryParamsToObject(value), { toClassOnly: true })
   @Type(() => Object)
   filter?: IOrder<T>;
 
-  @ApiProperty({ required: false, type: 'object', description: 'Filter parameters as an object' })
+  @ApiProperty({ required: false, description: 'Filter parameters as an object' })
   @IsOptional()
   @Transform(({ value }) => convertQueryParamsToObject(value), { toClassOnly: true })
   @Type(() => Object)
   filterOr?: IOrder<T>;
 
-  @ApiProperty({ required: false, type: 'object', description: 'Filter parameters as an object' })
+  @ApiProperty({ required: false, description: 'Filter parameters as an object' })
   @IsOptional()
   @Transform(({ value }) => convertQueryParamsToObject(value), { toClassOnly: true })
   @Type(() => Object)
