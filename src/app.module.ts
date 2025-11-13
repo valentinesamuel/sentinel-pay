@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import configSchema from '@config/schema.config';
 import common from '@config/common.config';
 import typeorm from '@config/typeorm.config';
-import { Broker } from '@broker/brokerr';
+import { Broker } from '@broker/broker';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CoreModule } from '@modules/core/core.module';
