@@ -71,14 +71,13 @@ export function convertQueryParamsToObject(query: any): any {
       obj[key] = false;
     } else if (query[key] === 'null') {
       obj[key] = null;
-    } else if (/^[0-9\.]+$/.test(query[key])) {
+    } else if (/^[0-9.]+$/.test(query[key])) {
       obj[key] = Number(query[key]);
     } else if (
       (typeof query[key] == 'string' &&
         query[key] &&
         query[key].trim().startsWith('{') &&
-        query[key].trim().endsWith('}'))
-      ||
+        query[key].trim().endsWith('}')) ||
       (typeof query[key] == 'string' &&
         query[key] &&
         query[key].trim().startsWith('[') &&
@@ -89,7 +88,7 @@ export function convertQueryParamsToObject(query: any): any {
       } else if (query[key].trim().charAt(1) !== '"') {
         obj[key] = query[key]
           .trim()
-          .replace(/[\[\]']+/g, '')
+          .replace(/[[\]']+/g, '')
           .split(',')
           .map((e) => e.trim());
       }
@@ -115,7 +114,6 @@ export function convertQueryParamsToObject(query: any): any {
  * // ?filter[name] = [john, sarah] => where name in ('%john%', '%sarah%')
  * // ?filterOr[name] = [john, sarah] => where name in ('%john%', '%sarah%')
  */
-
 
 export async function findAndPaginate<T>(
   repository: Repository<T>,
