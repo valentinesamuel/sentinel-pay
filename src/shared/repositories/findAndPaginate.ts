@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import {
   FindOptionsRelationByString,
   FindOptionsRelations,
@@ -10,16 +11,37 @@ import {
 import { IPaged } from '../interface/paged.interface';
 import { IQuery } from '../interface/query.interface';
 
-export function combineAndWithOr(filterAnd: any, filterOr: any) {
+export interface IPaginationFilterParam<T> {
+  repository: Repository<T>;
+  query: IQuery;
+  qWhere?: FindOptionsWhere<T>;
+  relations?: FindOptionsRelations<T> | FindOptionsRelationByString;
+  select?: (keyof T)[] | FindOptionsSelect<T>;
+  options?: { withDeleted?: boolean };
+}
+
+export function combineAndWithOr(
+  filterAnd: any,
+  filterOr: any,
+): FindOptionsWhere<any>[] | FindOptionsWhere<any> {
   filterAnd = filterAnd ?? {};
   filterOr = filterOr ?? {};
-  const where = { ...filterAnd };
-  const combined = [];
+  // Remove empty values from filterAnd
+  const cleanedFilterAnd = Object.fromEntries(
+    Object.entries(filterAnd).filter(
+      ([, value]) => value !== undefined && value !== null && value !== '',
+    ),
+  );
+  console.log('cleanedFilterAnd:', cleanedFilterAnd);
+
+  const where = { ...cleanedFilterAnd };
+  const combined: FindOptionsWhere<any>[] = [];
   if (filterOr && Object.keys(filterOr).length > 0) {
     Object.keys(filterOr).forEach((key) => {
       combined.push({ ...where, [key]: filterOr[key] });
     });
   }
+  console.log('Combined Where Clause:', combined.length > 0 ? combined : where);
   return combined.length > 0 ? combined : where;
 }
 
@@ -34,6 +56,8 @@ function formatQuery(filter: any) {
         obj[key] = In(filter[key]);
       } else if (isObject(filter[key])) {
         obj[key] = filter[key];
+        // } else if (typeof filter[key] === 'string') { // removed cus of enums search
+        //   obj[key] = ILike(`%${filter[key]}%`);
       } else {
         obj[key] = filter[key];
       }
@@ -71,24 +95,24 @@ export function convertQueryParamsToObject(query: any): any {
       obj[key] = false;
     } else if (query[key] === 'null') {
       obj[key] = null;
-    } else if (/^[0-9.]+$/.test(query[key])) {
+    } else if (/^[0-9\.]+$/.test(query[key])) {
       obj[key] = Number(query[key]);
     } else if (
       (typeof query[key] == 'string' &&
         query[key] &&
-        query[key].trim().startsWith('{') &&
-        query[key].trim().endsWith('}')) ||
+        query[key].trim().charAt(0) === '{' &&
+        query[key].trim().charAt(query[key].trim().length - 1) === '}') ||
       (typeof query[key] == 'string' &&
         query[key] &&
-        query[key].trim().startsWith('[') &&
-        query[key].trim().endsWith(']'))
+        query[key].trim().charAt(0) === '[' &&
+        query[key].trim().charAt(query[key].trim().length - 1) === ']')
     ) {
       if (query[key].trim().charAt(1) === '"') {
         obj[key] = JSON.parse(query[key]);
       } else if (query[key].trim().charAt(1) !== '"') {
         obj[key] = query[key]
           .trim()
-          .replace(/[[\]']+/g, '')
+          .replace(/[\[\]']+/g, '')
           .split(',')
           .map((e) => e.trim());
       }
@@ -101,60 +125,123 @@ export function convertQueryParamsToObject(query: any): any {
   return obj;
 }
 
+export function sanitizeOrder(order: any): any {
+  if (typeof order === 'object' && !Array.isArray(order)) {
+    // Recursively sanitize each key in the order object
+    return Object.fromEntries(
+      Object.entries(order)
+        .map(([key, value]) => {
+          if (typeof value === 'string' && value.trim() === '') {
+            return [key, undefined]; // Remove empty strings
+          }
+          if (typeof value === 'object' && Object.keys(value).length === 0) {
+            return [key, undefined]; // Remove empty objects
+          }
+          if (typeof value === 'object') {
+            return [key, sanitizeOrder(value)]; // Recursively clean nested objects
+          }
+          return [key, value]; // Leave other values intact
+        })
+        .filter(([, value]) => value !== undefined), // Remove undefined entries
+    );
+  }
+  return order; // Return as-is if not an object
+}
+
 /**
  * Paginates and filters repository results based on query parameters.
  * @param repository - The repository to query.
  * @param query - The query parameters including pagination and filters.
  * @param qWhere - Additional query conditions.
+ * @param relations - Additional relations to include.
+ * @param select - fields to select.
+ * @param options - sort and order option.
  * @returns A promise that resolves to a paginated result object.
- * example usage: To use a filter
- * // ?filter[businessId]=75352a3e-74f2-4e7f-ac90-db419004bc16 => where businessId = '75352a3e-74f2-4e7f-ac90-db419004bc16'
- * // ?filterOr[name]=john&filterOr[name]=sarah => where name = 'john' or name = 'sarah'
- * // ?filter[businessId]=75352a3e-74f2-4e7f-ac90-db419004bc16&filterOr[name]=john&filterOr[description]=john => where businessId = '75352a3e-74f2-4e7f-ac90-db419004bc16' and (name = 'john' or description = 'john')
- * // ?filter[name] = [john, sarah] => where name in ('%john%', '%sarah%')
- * // ?filterOr[name] = [john, sarah] => where name in ('%john%', '%sarah%')
+ *
+ * // To use a AND filter
+ * @example
+ * ?filter[businessId]=75352a3e-74f2-4e7f-ac90-db419004bc16 => (where businessId = '75352a3e-74f2-4e7f-ac90-db419004bc16')
+ *
+ * // To use a OR filter
+ * @example
+ * ?filterOr[name]=john&filterOr[name]=sarah => (where name = 'john' or name = 'sarah')
+ *
+ * // To use a OR filter with AND filter
+ * @example
+ * ?filter[businessId]=75352a3e-74f2-4e7f-ac90-db419004bc16&filterOr[name]=john&filterOr[description]=john => (where businessId = '75352a3e-74f2-4e7f-ac90-db419004bc16' and (name = 'john' or description = 'john')
+ *
+ * // To use a OR filter with IN filter
+ * @example
+ * ?filterAnd[name] = [john, sarah] => where name in ('%john%', '%sarah%')
+ * ?filterOr[name] = [john, sarah] => where name in ('%john%', '%sarah%')
  */
-
 export async function findAndPaginate<T>(
-  repository: Repository<T>,
-  query: IQuery,
-  qWhere?: FindOptionsWhere<T>,
-  relations?: FindOptionsRelations<T> | FindOptionsRelationByString,
-  select?: (keyof T)[] | FindOptionsSelect<T>,
-  options?: { withDeleted?: boolean },
+  filterParams: IPaginationFilterParam<T>,
 ): Promise<IPaged<T[]>> {
+  const { repository, query, qWhere, relations, select, options } = filterParams;
+  console.log('query', query);
   query.page = Number(query.page) > 1 ? Number(query.page) - 1 : 0;
   const take = Number(query.limit) || 10;
   const skip = query.page * take || 0;
-  const whereAnd = { ...qWhere, ...formatQuery(query.filter) };
+  // const whereAnd = { ...qWhere, ...formatQuery(query.filterAnd) };
+  const whereAnd = {
+    ...qWhere,
+    ...Object.fromEntries(
+      Object.entries(formatQuery(query.filter)).filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      ),
+    ),
+  };
+
   const whereOr = formatQuery(query.filterOr);
 
   let order = { createdAt: 'DESC' } as any;
+
   if (query.order && typeof query.order === 'object') {
-    const orderKey = Object.keys(query.order)[0];
-    order = { [orderKey]: query.order[orderKey] };
+    order = sanitizeOrder(query.order);
   }
 
-  let where = combineAndWithOr(whereAnd, whereOr);
+  const where = combineAndWithOr(whereAnd, whereOr);
 
-  // Search records by table attributes
   if (query.search && typeof query.search === 'object' && Object.keys(query.search).length > 0) {
-    const previousFilter = where;
-    where = [];
     Object.keys(query.search).forEach((key) => {
       if (typeof query.search[key] === 'object') {
         where[key] = {};
         for (const nestedKey of Object.keys(query.search[key])) {
-          where.push({
-            [key]: { [nestedKey]: ILike(`%${query.search[key][nestedKey]}%`), ...previousFilter },
-          });
+          const searchValue = query.search[key][nestedKey];
+          // Replace spaces with `+` for cases where `+` is intended
+          const sanitizedValue = searchValue?.replace(/\s/g, '+');
+          where[key][nestedKey] = ILike(`%${sanitizedValue}%`);
         }
       } else {
-        where.push({ [key]: ILike(`%${query.search[key]}%`), ...previousFilter });
+        const searchValue = query.search[key];
+        const sanitizedValue = searchValue?.replace(/\s/g, '+');
+        where[key] = ILike(`%${sanitizedValue}%`);
       }
     });
-    // }
   }
+
+  console.log('Final Query', {
+    where,
+    order,
+    take: take,
+    skip: skip,
+    relations,
+    select,
+    withDeleted: options?.withDeleted,
+  });
+
+  console.log(
+    JSON.stringify({
+      where,
+      order,
+      take: take,
+      skip: skip,
+      relations,
+      select,
+      withDeleted: options?.withDeleted,
+    }),
+  );
 
   const [result, total] = await repository.findAndCount({
     where,
@@ -176,10 +263,10 @@ export async function findAndPaginate<T>(
       page: mainPage,
       limit: take,
       count: result.length,
+      totalRecords: total,
       previousPage: mainPage > 1 ? mainPage - 1 : false,
       nextPage: numberOfPages >= nextPage ? nextPage : false,
       pageCount: numberOfPages,
-      totalRecords: total,
     },
   };
 }
