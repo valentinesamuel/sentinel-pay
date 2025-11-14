@@ -43,5 +43,21 @@ export default {
 
     // // swagger
     SWAGGER_API_ROOT: Joi.string().required(),
+
+    // Azure Blob Storage
+    AZURE_USE_CONNECTION_STRING: Joi.boolean().default(false),
+    AZURE_STORAGE_CONNECTION_STRING: Joi.string().when('AZURE_USE_CONNECTION_STRING', {
+      is: true,
+      then: Joi.string().required(),
+      otherwise: Joi.string().optional().allow(''),
+    }),
+    AZURE_STORAGE_ACCOUNT_NAME: Joi.string().when('AZURE_USE_CONNECTION_STRING', {
+      is: false,
+      then: Joi.string().required(),
+      otherwise: Joi.string().optional().allow(''),
+    }),
+    AZURE_STORAGE_CONTAINER_NAME: Joi.string().default('uploads'),
+    MAX_FILE_SIZE: Joi.number().integer().default(10485760), // 10MB default
+    ALLOWED_MIME_TYPES: Joi.string().optional(),
   }),
 };

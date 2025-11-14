@@ -4,15 +4,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import configSchema from '@config/schema.config';
 import common from '@config/common.config';
 import typeorm from '@config/typeorm.config';
+import azureStorage from '@config/azure-storage.config';
 import { Broker } from '@broker/broker';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CoreModule } from '@modules/core/core.module';
+import { StorageModule } from '@modules/storage/storage.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [common, typeorm],
+      load: [common, typeorm, azureStorage],
       ...configSchema,
       isGlobal: true,
       envFilePath: '.env',
@@ -23,6 +25,7 @@ import { CoreModule } from '@modules/core/core.module';
     }),
     ThrottlerModule.forRoot([{ ttl: 30000, limit: 10 }]),
     CoreModule,
+    StorageModule,
   ],
   controllers: [],
   providers: [
